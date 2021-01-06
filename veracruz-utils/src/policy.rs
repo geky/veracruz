@@ -94,6 +94,113 @@ impl From<x509_parser::error::PEMError> for VeracruzUtilError {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// File permission.
+////////////////////////////////////////////////////////////////////////////////
+/// Defines the permission of a file.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VeracruzFilePermission {
+    /// The file name 
+    file_name : String,
+    /// Read permission
+    read : bool,
+    /// Write permission
+    write : bool,
+    /// Execute permission
+    execute : bool,
+}
+
+impl VeracruzFilePermission {
+    /// Creates a new file permission.
+    #[inline]
+    pub fn new(file_name: String, read: bool, write: bool, execute: bool) -> Self {
+        Self {
+            file_name,
+            read,
+            write,
+            execute,
+        }
+    }
+
+    /// Returns the file_name.
+    #[inline]
+    pub fn file_name(&self) -> &str {
+        self.file_name.as_str()
+    }
+
+    /// If it is allowed to read.
+    #[inline]
+    pub fn read(&self) -> bool {
+        self.read
+    }
+
+    /// If it is allowed to write.
+    #[inline]
+    pub fn write(&self) -> bool {
+        self.write
+    }
+
+    /// If it is allowed to execute.
+    #[inline]
+    pub fn execute(&self) -> bool {
+        self.execute
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Program permission
+////////////////////////////////////////////////////////////////////////////////
+/// Defines a program that can be loaded into execution engine.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct VeracruzProgram {
+    /// The file name 
+    program_file_name : String,
+    /// The program ID
+    id: u32,
+    /// The hash of the program which will be provisioned into Veracruz by the
+    /// program provider.
+    pi_hash : String,
+    /// The file permission that specifies the program's ability to read, write and execute files.
+    file_permissions : Vec<VeracruzFilePermission>,
+}
+
+impl VeracruzProgram {
+    /// Creates a veracruz program.
+    #[inline]
+    pub fn new(program_file_name: String, id: u32, pi_hash: String, file_permissions : Vec<VeracruzFilePermission>) -> Self {
+        Self {
+            program_file_name,
+            id,
+            pi_hash,
+            file_permissions,
+        }
+    }
+
+    /// Return the program file name.
+    #[inline]
+    pub fn program_file_name(&self) -> &str {
+        self.program_file_name.as_str()
+    }
+
+    /// Return the program id.
+    #[inline]
+    pub fn id(&self) -> u32 {
+        self.id
+    }
+
+    /// Return the program hash.
+    #[inline]
+    pub fn pi_hash(&self) -> &str {
+        self.pi_hash.as_str()
+    }
+
+    /// Return file permissions associated to the program.
+    #[inline]
+    pub fn file_permissions(&self) -> &[VeracruzFilePermission] {
+        self.file_permissions.as_slice()
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // Execution strategy.
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -146,17 +253,20 @@ pub struct VeracruzIdentity<U> {
     /// The mixture of roles that the principal behind this identity has taken
     /// on for the Veracruz computation.
     roles: Vec<VeracruzRole>,
+    /// The file permission that specifies this principal's ability to read, write and execute files.
+    file_permissions : Vec<VeracruzFilePermission>,
 }
 
 impl<U> VeracruzIdentity<U> {
     /// Creates a new identity from a certificate, and identifier.  Initially,
     /// we keep the set of roles empty.
     #[inline]
-    pub fn new(certificate: U, id: u32) -> Self {
+    pub fn new(certificate: U, id: u32, roles: Vec<VeracruzRole>, file_permissions : Vec<VeracruzFilePermission>) -> Self {
         Self {
             certificate,
             id,
-            roles: Vec::new(),
+            roles,
+            file_permissions,
         }
     }
 
@@ -205,6 +315,11 @@ impl<U> VeracruzIdentity<U> {
 }
 
 impl VeracruzIdentity<String> {
+    /// Return file permissions associated to the principal.
+    #[inline]
+    pub fn file_permissions(&self) -> &[VeracruzFilePermission] {
+        self.file_permissions.as_slice()
+    }
     /// Checks the validity of the identity, including well-formedness checks on
     /// the structure of the X509 certificate.  Returns `Err(reason)` iff the
     /// identity is malformed.  Returns `Ok(())` in all other cases.
@@ -334,6 +449,8 @@ impl VeracruzExpiry {
 pub struct VeracruzPolicy {
     /// The identities of every principal involved in a computation.
     identities: Vec<VeracruzIdentity<String>>,
+    /// The candidate programs that can be loaded in the execution engine.
+    programs : Vec<VeracruzProgram>,
     /// The URL of the Sinaloa server.
     sinaloa_url: String,
     /// The expiry of the enclave's self-signed certificate, which will be
@@ -358,9 +475,6 @@ pub struct VeracruzPolicy {
     data_provision_order: Vec<u64>,
     /// The URL of the proxy attestation service.
     proxy_attestation_server_url: String,
-    /// The hash of the program which will be provisioned into Veracruz by the
-    /// program provider.
-    pi_hash: String,
     /// The debug configuration flag.  This dictates whether the WASM program
     /// will be able to print debug configuration messages to *stdout* on the
     /// host's machine.
@@ -391,6 +505,7 @@ impl VeracruzPolicy {
     /// well-formedness checks pass.
     pub fn new(
         identities: Vec<VeracruzIdentity<String>>,
+        programs : Vec<VeracruzProgram>,
         sinaloa_url: String,
         enclave_cert_expiry: VeracruzExpiry,
         ciphersuite: String,
@@ -400,12 +515,12 @@ impl VeracruzPolicy {
         data_provision_order: Vec<u64>,
         streaming_order: Vec<u64>,
         proxy_attestation_server_url: String,
-        pi_hash: String,
         debug: bool,
         execution_strategy: ExecutionStrategy,
     ) -> Result<Self, VeracruzUtilError> {
         let policy = Self {
             identities,
+            programs,
             sinaloa_url,
             enclave_cert_expiry,
             ciphersuite,
@@ -414,7 +529,6 @@ impl VeracruzPolicy {
             mexico_city_hash_nitro,
             data_provision_order,
             proxy_attestation_server_url,
-            pi_hash,
             debug,
             execution_strategy,
             streaming_order,
@@ -438,6 +552,12 @@ impl VeracruzPolicy {
     #[inline]
     pub fn identities(&self) -> &Vec<VeracruzIdentity<String>> {
         &self.identities
+    }
+
+    /// Returns the programs associated with this policy.
+    #[inline]
+    pub fn programs(&self) -> &[VeracruzProgram] {
+        self.programs.as_slice()
     }
 
     /// Returns the URL of the Sinaloa server associated with this policy.
@@ -502,12 +622,6 @@ impl VeracruzPolicy {
     #[inline]
     pub fn proxy_attestation_server_url(&self) -> &String {
         &self.proxy_attestation_server_url
-    }
-
-    /// Returns the hash of the WASM binary, associated with this policy.
-    #[inline]
-    pub fn pi_hash(&self) -> &String {
-        &self.pi_hash
     }
 
     /// Returns the debug configuration flag associated with this policy.

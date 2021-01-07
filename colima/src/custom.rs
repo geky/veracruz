@@ -180,10 +180,10 @@ pub fn serialize_program(program_buffer: &[u8]) -> ColimaResult {
 }
 
 /// Serialize a (static) data package and its package ID.
-pub fn serialize_program_data(data_buffer: &[u8], package_id: u32) -> ColimaResult {
+pub fn serialize_program_data(data_buffer: &[u8], file_name: &str) -> ColimaResult {
     let mut data = colima::Data::new();
     data.set_data(data_buffer.to_vec());
-    data.set_package_id(package_id);
+    data.set_file_name(file_name.to_string());
     let mut colima = colima::MexicoCityRequest::new();
     colima.set_data(data);
 
@@ -200,10 +200,10 @@ pub fn serialize_request_enclave_state() -> ColimaResult {
 }
 
 /// Serialize a stream data package and its package ID.
-pub fn serialize_stream(data_buffer: &[u8], package_id: u32) -> ColimaResult {
+pub fn serialize_stream(data_buffer: &[u8], file_name: &str) -> ColimaResult {
     let mut data = colima::Data::new();
     data.set_data(data_buffer.to_vec());
-    data.set_package_id(package_id);
+    data.set_file_name(file_name.to_string());
     let mut colima = colima::MexicoCityRequest::new();
     colima.set_stream(data);
 
@@ -211,8 +211,9 @@ pub fn serialize_stream(data_buffer: &[u8], package_id: u32) -> ColimaResult {
 }
 
 /// Serialize the request for querying the result.
-pub fn serialize_request_result() -> ColimaResult {
-    let command = colima::RequestResult::new();
+pub fn serialize_request_result(file_name : &str) -> ColimaResult {
+    let mut command = colima::RequestResult::new();
+    command.set_file_name(file_name.to_string());
     let mut request = colima::MexicoCityRequest::new();
     request.set_request_result(command);
 
@@ -378,9 +379,10 @@ pub fn parse_psa_attestation_init(
 }
 
 /// Serialize the request for querying the hash of the provisioned program.
-pub fn serialize_request_pi_hash() -> ColimaResult {
+pub fn serialize_request_pi_hash(file_name : &str) -> ColimaResult {
     let mut request = colima::MexicoCityRequest::new();
-    let rph = colima::RequestPiHash::new();
+    let mut rph = colima::RequestPiHash::new();
+    rph.set_file_name(file_name.to_string());
     request.set_request_pi_hash(rph);
     Ok(request.write_to_bytes()?)
 }

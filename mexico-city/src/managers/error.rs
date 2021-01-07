@@ -40,6 +40,8 @@ pub enum MexicoCityError {
     #[cfg(feature = "sgx")]
     #[error(display = "MexicoCity: SGXError: {:?}.", _0)]
     SGXError(sgx_types::sgx_status_t),
+    #[error(display = "MexicoCity: ParseIntError: {:?}", _0)] 
+    ParseIntError(#[error(source)] core::num::ParseIntError),
     #[error(display = "MexicoCity: {} failed with error code {:?}.", _0, _1)]
     UnsafeCallError(&'static str, u32),
     #[error(display = "MexicoCity: Received no data.")]

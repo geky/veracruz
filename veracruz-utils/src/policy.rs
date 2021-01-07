@@ -84,6 +84,8 @@ pub enum VeracruzUtilError {
     NoResultRetrieverError,
     #[error(display = "VeracruzUtil: Policy is missing a field: {:?}", _0)]
     MissingPolicyFieldError(String),
+    #[error(display = "VeracruzUtil: Policy has no program file: {:?}.",_0)]
+    NoProgramFileError(String),
 }
 
 #[cfg(feature = "std")]
@@ -622,6 +624,13 @@ impl VeracruzPolicy {
     #[inline]
     pub fn proxy_attestation_server_url(&self) -> &String {
         &self.proxy_attestation_server_url
+    }
+
+    /// Returns the hash of the WASM binary, associated with this policy.
+    #[inline]
+    pub fn pi_hash(&self, program_file_name : &str) -> Result<&str, VeracruzUtilError> {
+        self.programs.iter().find(|VeracruzProgram{program_file_name : p, ..}| program_file_name == p)
+            .map(|VeracruzProgram{pi_hash, ..}|pi_hash.as_str()).ok_or(VeracruzUtilError::NoProgramFileError(program_file_name.to_string()))
     }
 
     /// Returns the debug configuration flag associated with this policy.

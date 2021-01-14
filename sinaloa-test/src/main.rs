@@ -402,7 +402,7 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(RANDOM_SOURCE_WASM),
-            &[("0", LINEAR_REGRESSION_DATA)],
+            &[("input-0", LINEAR_REGRESSION_DATA)],
             &[],
             false,
         );
@@ -430,7 +430,7 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(LINEAR_REGRESSION_WASM),
-            &[("0", LINEAR_REGRESSION_DATA)],
+            &[("input-0", LINEAR_REGRESSION_DATA)],
             &[],
             false,
         );
@@ -473,8 +473,8 @@ mod tests {
             Some(CUSTOMER_ADS_INTERSECTION_SET_SUM_WASM),
             &[
                 // message sends out in the reversed order
-                ("1", INTERSECTION_SET_SUM_CUSTOMER_DATA),
-                ("0", INTERSECTION_SET_SUM_ADVERTISEMENT_DATA),
+                ("input-1", INTERSECTION_SET_SUM_CUSTOMER_DATA),
+                ("input-0", INTERSECTION_SET_SUM_ADVERTISEMENT_DATA),
             ],
             &[],
             false,
@@ -493,7 +493,7 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(STRING_EDIT_DISTANCE_WASM),
-            &[("0", STRING_1_DATA), ("1", STRING_2_DATA)],
+            &[("input-0", STRING_1_DATA), ("1", STRING_2_DATA)],
             &[],
             false,
         );
@@ -514,7 +514,7 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(LINEAR_REGRESSION_WASM),
-            &[("0", LINEAR_REGRESSION_DATA)],
+            &[("input-0", LINEAR_REGRESSION_DATA)],
             &[],
             true,
         );
@@ -545,7 +545,7 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(PERSON_SET_INTERSECTION_WASM),
-            &[("0", PERSON_SET_1_DATA), ("1", PERSON_SET_2_DATA)],
+            &[("input-0", PERSON_SET_1_DATA), ("input-1", PERSON_SET_2_DATA)],
             &[],
             true,
         );
@@ -564,10 +564,10 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(NUMBER_STREM_WASM),
-            &[("0", SINGLE_F64_DATA)],
+            &[("input-0", SINGLE_F64_DATA)],
             &[
-                ("0", VEC_F64_1_DATA),
-                ("1", VEC_F64_2_DATA),
+                ("stream-0", VEC_F64_1_DATA),
+                ("stream-1", VEC_F64_2_DATA),
             ],
             true,
         );
@@ -582,8 +582,8 @@ mod tests {
             CLIENT_CERT,
             CLIENT_KEY,
             Some(NUMBER_STREM_WASM),
-            &[("0", SINGLE_F64_DATA)],
-            &[("0", VEC_F64_1_DATA)],
+            &[("input-0", SINGLE_F64_DATA)],
+            &[("stream-0", VEC_F64_1_DATA)],
             true,
         );
         assert!(result.is_err(), "An error should occur");
@@ -599,8 +599,8 @@ mod tests {
             Some(NUMBER_STREM_WASM),
             &[],
             &[
-                ("0", VEC_F64_1_DATA),
-                ("1", VEC_F64_2_DATA),
+                ("stream-0", VEC_F64_1_DATA),
+                ("stream-1", VEC_F64_2_DATA),
             ],
             true,
         );
@@ -617,9 +617,9 @@ mod tests {
             Some(NUMBER_STREM_WASM),
             &[],
             &[
-                ("0", VEC_F64_1_DATA),
-                ("1", VEC_F64_2_DATA),
-                ("2", VEC_F64_1_DATA),
+                ("stream-0", VEC_F64_1_DATA),
+                ("stream-1", VEC_F64_2_DATA),
+                ("stream-2", VEC_F64_1_DATA),
             ],
             true,
         );
@@ -640,7 +640,7 @@ mod tests {
                 CLIENT_CERT,
                 CLIENT_KEY,
                 Some(LOGISTICS_REGRESSION_WASM),
-                &[("0", data_path)],
+                &[("input-0", data_path)],
                 &[],
                 // turn on attestation
                 true,
@@ -665,7 +665,7 @@ mod tests {
                 CLIENT_CERT,
                 CLIENT_KEY,
                 Some(MACD_WASM),
-                &[("0", data_path)],
+                &[("input-0", data_path)],
                 &[],
                 // turn on attestation
                 true,
@@ -695,7 +695,7 @@ mod tests {
                 CLIENT_CERT,
                 CLIENT_KEY,
                 Some(MACD_DATA_PATH),
-                &[("0", data_path)],
+                &[("input-0", data_path)],
                 &[],
                 // turn on attestation
                 true,
@@ -720,7 +720,7 @@ mod tests {
                 CLIENT_CERT,
                 CLIENT_KEY,
                 Some(INTERSECTION_SET_SUM_WASM),
-                &[("0", data_path)],
+                &[("input-0", data_path)],
                 &[],
                 // turn on attestation
                 true,
@@ -1188,6 +1188,30 @@ mod tests {
                     "             Computation result time (μs): {}.",
                     time_result.elapsed().as_micros()
                 );
+
+                //TODO: TEMPERARY GLUE CODE
+                let response = client_tls_send(
+                    &client_tls_tx,
+                    &client_tls_rx,
+                    client_session_id,
+                    &mut client_session,
+                    ticket,
+                    //TODO: change to the output file specified in policy
+                    &colima::serialize_request_result("output")?.as_slice(),
+                )
+                .and_then(|response| {
+                    // decode the result
+                    let response = colima::parse_mexico_city_response(&response)?;
+                    let response = colima::parse_result(&response)?;
+                    response.ok_or(SinaloaError::MissingFieldError(
+                        "Result retrievers response",
+                    ))
+                })?;
+                info!(
+                    "             Computation result time (μs): {}.",
+                    time_result.elapsed().as_micros()
+                );
+                //TODO: TEMPERARY GLUE CODE END
 
                 info!("### Step 9.  Client decodes the result.");
                 let result: T = pinecone::from_bytes(&response.as_slice())?;

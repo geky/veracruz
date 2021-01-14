@@ -74,6 +74,8 @@ pub(crate) struct MexicoCityBuffer {
     data: HashMap<ClientID, HashMap<PackageID, DataPackage>>,
     // All streaming data, indexed by ClientID, then by PackageID
     stream: HashMap<ClientID, HashMap<PackageID, DataPackage>>,
+    //TODO: temporary fs stub
+    pub fs: HashMap<std::string::String, Vec<u8>>,
 }
 
 impl MexicoCityBuffer {
@@ -83,6 +85,7 @@ impl MexicoCityBuffer {
             program: None,
             data: HashMap::new(),
             stream: HashMap::new(),
+            fs: HashMap::new(),
         }
     }
 

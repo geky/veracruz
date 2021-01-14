@@ -297,6 +297,12 @@ impl<U> VeracruzIdentity<U> {
         self.roles.iter().any(|r| r == role)
     }
 
+    /// Returns `true` iff the principal has the role, `role`.
+    #[inline]
+    pub fn file_permissions(&self) -> &[VeracruzFilePermission] {
+        self.file_permissions.as_slice()
+    }
+
     /// Returns the certificate associated with this identity.
     #[inline]
     pub fn certificate(&self) -> &U {
@@ -317,11 +323,6 @@ impl<U> VeracruzIdentity<U> {
 }
 
 impl VeracruzIdentity<String> {
-    /// Return file permissions associated to the principal.
-    #[inline]
-    pub fn file_permissions(&self) -> &[VeracruzFilePermission] {
-        self.file_permissions.as_slice()
-    }
     /// Checks the validity of the identity, including well-formedness checks on
     /// the structure of the X509 certificate.  Returns `Err(reason)` iff the
     /// identity is malformed.  Returns `Ok(())` in all other cases.

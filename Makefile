@@ -9,7 +9,7 @@
 # See the `LICENSE.markdown` file in the Veracruz root directory for licensing
 # and copyright information.
  
-.PHONY: all sdk test_cases sgx-durango-test trustzone-durango-test sgx trustzone sgx-sinaloa-test sgx-sinaloa-performance sgx-veracruz-test sgx-psa-attestation tz-psa-attestationtrustzone-sinaloa-test-setting  trustzone-veracruz-test-setting trustzone-env sgx-env tlaxcala trustzone-test-env clean clean-cargo-lock fmt 
+.PHONY: all sdk test_cases sgx-durango-test trustzone-durango-test sgx sgx-enclaves sgx-bin trustzone trustzone-enclaves trustzone-bin sgx-sinaloa-test sgx-sinaloa-performance sgx-veracruz-test sgx-psa-attestation tz-psa-attestationtrustzone-sinaloa-test-setting  trustzone-veracruz-test-setting trustzone-env sgx-env tlaxcala trustzone-test-env clean clean-cargo-lock fmt
 
  
 WARNING_COLOR := "\e[1;33m"
@@ -41,30 +41,37 @@ trustzone-durango-test: trustzone test_cases
 
 # Compile for sgx
 # offset the CC OPENSSL_DIR, which might be used in compiling trustzone
-sgx: sdk sgx-env
+sgx: sdk sgx-enclaves sgx-durango sgx-bin
+
+sgx-enclaves: sgx-env
 	cd mexico-city-bind && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build
 	cd sonora-bind && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build
+
+sgx-durango: sgx-enclaves sgx-env
 	cd durango && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --lib --features sgx
 
-# Compile for trustzone, note: source the rust-optee-trustzone-sdk/environment first, however assume `unset CC`.
-trustzone: sdk trustzone-env
-	$(MAKE) -C mexico-city trustzone CC=$(AARCH64_GCC)
-	$(MAKE) -C jalisco trustzone
-	cd durango && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --lib --features tz
-
-# Compile command-line programs for SGX, leaving binaries in the bin directory
-sgx-bin:
+sgx-bin: sgx-enclaves sgx-env
 	mkdir -p bin
 	# TODO do we really need SGX flag for tabasco?
 	cd tabasco-cli && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --features sgx
 	cd sinaloa-cli && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --features sgx
 	cd durango-cli && cargo build
 	cp tabasco-cli/target/debug/tabasco bin/tabasco
+	# TODO remove relative path to enclave .so in Sinaloa?
 	cp sinaloa-cli/target/debug/sinaloa bin/sinaloa
 	cp durango-cli/target/debug/durango bin/durango
 
-# Compile command-line programs for trustzone, leaving binaries in the bin directory
-trustzone-bin:
+# Compile for trustzone, note: source the rust-optee-trustzone-sdk/environment first, however assume `unset CC`.
+trustzone: sdk trustzone-enclaves trustzone-durango trustzone-bin
+
+trustzone-enclaves: trustzone-env
+	$(MAKE) -C mexico-city trustzone CC=$(AARCH64_GCC)
+	$(MAKE) -C jalisco trustzone
+
+trustzone-durango: trustzone-enclaves trustzone-env
+	cd durango && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --lib --features tz
+
+trustzone-bin: trustzone-env
 	mkdir -p bin
 	# TODO do we really need SGX flag for tabasco?
 	cd tabasco-cli && cargo build --target aarch64-unknown-linux-gnu --features tz

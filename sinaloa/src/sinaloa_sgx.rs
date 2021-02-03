@@ -33,14 +33,20 @@ pub mod sinaloa_sgx {
         trustzone_root_enclave_sgx_ra_proc_msg2_trusted, trustzone_root_enclave_start_local_attest_enc,
     };
     use std::{ffi::CStr, mem};
+    use std::io::Write;
+    use tempfile;
     use veracruz_utils;
 
     lazy_static! {
         static ref TRUSTZONE_ROOT_ENCLAVE: std::sync::Mutex<Option<SgxEnclave>> = std::sync::Mutex::new(None);
     }
 
-    static MC_ENCLAVE_FILE: &'static str = "./target/debug/mexicocity.signed.so";
-    static TRUSTZONE_ROOT_ENCLAVE_ENCLAVE_FILE: &'static str = "./target/debug/trustzone_root_enclave.signed.so";
+    static MC_ENCLAVE_BINARY: &'static [u8] = include_bytes!(
+        "../../mexico-city-bind/target/debug/mexicocity.signed.so"
+    );
+    static TRUSTZONE_ROOT_ENCLAVE_ENCLAVE_BINARY: &'static [u8] = include_bytes!(
+        "../../trustzone-root-enclave-bind/target/debug/trustzone_root_enclave.signed.so"
+    );
 
     pub struct SinaloaSGX {
         mc_enclave: SgxEnclave,
@@ -67,7 +73,12 @@ pub mod sinaloa_sgx {
         }
     }
 
-    fn start_enclave(library_fn: &str) -> Result<SgxEnclave, SinaloaError> {
+    fn start_enclave(library_binary: &[u8]) -> Result<SgxEnclave, SinaloaError> {
+        // need enclave binary as a file, so store in temporary file
+        let mut library_file = tempfile::NamedTempFile::new()?;
+        library_file.write_all(library_binary)?;
+        let library_path = library_file.path();
+
         let mut launch_token: sgx_launch_token_t = [0; 1024];
         let mut launch_token_updated: i32 = 0;
 
@@ -77,7 +88,7 @@ pub mod sinaloa_sgx {
             misc_select: 0,
         };
         let enclave = SgxEnclave::create(
-            library_fn,
+            library_path,
             debug,
             &mut launch_token,
             &mut launch_token_updated,
@@ -465,7 +476,7 @@ pub mod sinaloa_sgx {
 
     impl Sinaloa for SinaloaSGX {
         fn new(policy_json: &str) -> Result<Self, SinaloaError> {
-            let mc_enclave = start_enclave(MC_ENCLAVE_FILE)?;
+            let mc_enclave = start_enclave(MC_ENCLAVE_BINARY)?;
 
             let mut new_sinaloa = SinaloaSGX {
                 mc_enclave: mc_enclave,
@@ -488,9 +499,9 @@ pub mod sinaloa_sgx {
                 match *trustzone_root_enclave {
                     Some(_) => (), // do nothing, we're good
                     None => {
-                        let enclave = start_enclave(TRUSTZONE_ROOT_ENCLAVE_ENCLAVE_FILE)?;
+                        let enclave = start_enclave(TRUSTZONE_ROOT_ENCLAVE_ENCLAVE_BINARY)?;
                         new_sinaloa.native_attestation(&enclave, &policy.proxy_attestation_server_url())?;
-                        *trustzone_root_enclave = Some(enclave)
+                        *trustzone_root_enclave= Some(enclave)
                     }
                 }
             }

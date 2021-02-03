@@ -33,14 +33,20 @@ pub mod sinaloa_sgx {
         sonora_sgx_ra_proc_msg2_trusted, sonora_start_local_attest_enc,
     };
     use std::{ffi::CStr, mem};
+    use std::io::Write;
+    use tempfile;
     use veracruz_utils;
 
     lazy_static! {
         static ref SONORA: std::sync::Mutex<Option<SgxEnclave>> = std::sync::Mutex::new(None);
     }
 
-    static MC_ENCLAVE_FILE: &'static str = "./target/debug/mexicocity.signed.so";
-    static SONORA_ENCLAVE_FILE: &'static str = "./target/debug/sonora.signed.so";
+    static MC_ENCLAVE_BINARY: &'static [u8] = include_bytes!(
+        "../../mexico-city-bind/target/debug/mexicocity.signed.so"
+    );
+    static SONORA_ENCLAVE_BINARY: &'static [u8] = include_bytes!(
+        "../../sonora-bind/target/debug/sonora.signed.so"
+    );
 
     pub struct SinaloaSGX {
         mc_enclave: SgxEnclave,
@@ -67,7 +73,12 @@ pub mod sinaloa_sgx {
         }
     }
 
-    fn start_enclave(library_fn: &str) -> Result<SgxEnclave, SinaloaError> {
+    fn start_enclave(library_binary: &[u8]) -> Result<SgxEnclave, SinaloaError> {
+        // need enclave binary as a file, so store in temporary file
+        let mut library_file = tempfile::NamedTempFile::new()?;
+        library_file.write_all(library_binary)?;
+        let library_path = library_file.path();
+
         let mut launch_token: sgx_launch_token_t = [0; 1024];
         let mut launch_token_updated: i32 = 0;
 
@@ -77,7 +88,7 @@ pub mod sinaloa_sgx {
             misc_select: 0,
         };
         let enclave = SgxEnclave::create(
-            library_fn,
+            library_path,
             debug,
             &mut launch_token,
             &mut launch_token_updated,
@@ -465,7 +476,7 @@ pub mod sinaloa_sgx {
 
     impl Sinaloa for SinaloaSGX {
         fn new(policy_json: &str) -> Result<Self, SinaloaError> {
-            let mc_enclave = start_enclave(MC_ENCLAVE_FILE)?;
+            let mc_enclave = start_enclave(MC_ENCLAVE_BINARY)?;
 
             let mut new_sinaloa = SinaloaSGX {
                 mc_enclave: mc_enclave,
@@ -488,7 +499,7 @@ pub mod sinaloa_sgx {
                 match *sonora_option {
                     Some(_) => (), // do nothing, we're good
                     None => {
-                        let sonora_enclave = start_enclave(SONORA_ENCLAVE_FILE)?;
+                        let sonora_enclave = start_enclave(SONORA_ENCLAVE_BINARY)?;
                         new_sinaloa.native_attestation(&sonora_enclave, &policy.tabasco_url())?;
                         *sonora_option = Some(sonora_enclave)
                     }

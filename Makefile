@@ -57,7 +57,6 @@ sgx-bin: sgx-enclaves sgx-env
 	cd sinaloa-cli && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --features sgx
 	cd durango-cli && cargo build
 	cp tabasco-cli/target/debug/tabasco bin/tabasco
-	# TODO remove relative path to enclave .so in Sinaloa?
 	cp sinaloa-cli/target/debug/sinaloa bin/sinaloa
 	cp durango-cli/target/debug/durango bin/durango
 

@@ -59,6 +59,28 @@ trustzone: sdk trustzone-env
 	$(MAKE) -C sgx-root-enclave trustzone
 	cd durango && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --lib --features tz
 
+# Compile command-line programs for SGX, leaving binaries in the bin directory
+sgx-bin:
+	mkdir -p bin
+	# TODO do we really need SGX flag for tabasco?
+	cd tabasco-cli && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --features sgx
+	cd sinaloa-cli && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --features sgx
+	cd durango-cli && cargo build
+	cp tabasco-cli/target/debug/tabasco bin/tabasco
+	cp sinaloa-cli/target/debug/sinaloa bin/sinaloa
+	cp durango-cli/target/debug/durango bin/durango
+
+# Compile command-line programs for trustzone, leaving binaries in the bin directory
+trustzone-bin:
+	mkdir -p bin
+	# TODO do we really need SGX flag for tabasco?
+	cd tabasco-cli && cargo build --target aarch64-unknown-linux-gnu --features tz
+	cd sinaloa-cli && cargo build --target aarch64-unknown-linux-gnu --features tz
+	cd durango-cli && cargo build
+	cp tabasco-cli/target/debug/tabasco bin/tabasco
+	cp sinaloa-cli/target/debug/sinaloa bin/sinaloa
+	cp durango-cli/target/debug/durango bin/durango
+
 sgx-sinaloa-test: sgx test_cases
 	cd sinaloa-test \
 		&& RUSTFLAGS=$(SGX_RUST_FLAG) cargo test --features sgx \
@@ -167,6 +189,10 @@ clean:
 	$(MAKE) clean -C trustzone-root-enclave
 	$(MAKE) clean -C sdk
 	$(MAKE) clean -C nitro-root-enclave
+	cd tabasco-cli && cargo clean
+	cd sinaloa-cli && cargo clean
+	cd durango-cli && cargo clean
+	rm -rf bin
 
 # NOTE: this target deletes ALL cargo.lock.
 clean-cargo-lock:
@@ -188,3 +214,6 @@ fmt:
 	cd trustzone-root-enclave && cargo fmt
 	cd proxy-attestation-server && cargo fmt
 	$(MAKE) -C sdk fmt
+	cd tabasco-cli && cargo fmt
+	cd sinaloa-cli && cargo fmt
+	cd durango-cli && cargo fmt

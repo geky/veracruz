@@ -30,9 +30,14 @@
 //! information on licensing and copyright.
 
 use err_derive::Error;
+use ring;
+use hex;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::{
+    fs,
+    path,
+    slice::Iter,
     string::{String, ToString},
     vec::Vec,
     collections::{HashMap, HashSet},
@@ -88,6 +93,8 @@ pub enum VeracruzUtilError {
     MissingPolicyFieldError(String),
     #[error(display = "VeracruzUtil: Policy has no program file: {:?}.",_0)]
     NoProgramFileError(String),
+    #[error(display = "VeracruzUtil: IOError: {:?}.", _0)]
+    IOError(#[error(source)] std::io::Error),
 }
 
 #[cfg(feature = "std")]
@@ -752,4 +759,37 @@ impl VeracruzPolicy {
         rst.sort();
         rst
     }
+}
+
+
+/// Parses and hashes a Veracruz policy from the given file, validating
+/// the well-formedness of the resulting policy in the process.
+/// Returns `Ok((policy, policy_hash))` iff these well-formedness checks pass.
+pub fn policy_and_hash_from_file<P>(
+    path: P
+) -> Result<(VeracruzPolicy, String), VeracruzUtilError>
+where
+    P: AsRef<path::Path>
+{
+    let policy_json = fs::read_to_string(path)?;
+    policy_and_hash_from_json(&policy_json)
+}
+
+/// Parses and hashes a Veracruz policy from a JSON-encoded string, `json`,
+/// validating the well-formedness of the resulting policy in the process.
+/// Returns `Ok((policy, policy_hash))` iff these well-formedness checks pass.
+pub fn policy_and_hash_from_json(
+    json: &str
+) -> Result<(VeracruzPolicy, String), VeracruzUtilError> {
+    // hash
+    let hash_bytes = ring::digest::digest(
+        &ring::digest::SHA256,
+        json.as_bytes()
+    );
+    let hash = hex::encode(&hash_bytes);
+
+    // decode policy
+    let policy = VeracruzPolicy::from_json(json)?;
+
+    Ok((policy, hash))
 }

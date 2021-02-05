@@ -36,6 +36,7 @@ use std::{
     slice::Iter,
     string::{String, ToString},
     vec::Vec,
+    collections::{HashMap, HashSet},
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -96,11 +97,31 @@ impl From<x509_parser::error::PEMError> for VeracruzUtilError {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// File permission.
+// File operation and capabilities.
 ////////////////////////////////////////////////////////////////////////////////
+
+/// List of file operations
+/// TODO: line up wasi-type, if necessary
+#[derive(Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum VeracruzCapability {
+    Read,
+    Write,
+    Execute,
+}
+
+#[derive(Clone,Hash,PartialEq,Eq,Debug)]
+pub enum VeracruzCapabilityIndex {
+    // Client ID
+    Principal(u64),
+    // Program
+    Program(String),
+}
+
+pub type VeracruzCapabilityTable = HashMap<VeracruzCapabilityIndex,HashMap<String, HashSet<VeracruzCapability>>>;
+
 /// Defines the permission of a file.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct VeracruzFilePermission {
+pub struct VeracruzFileCapability {
     /// The file name 
     file_name : String,
     /// Read permission
@@ -111,7 +132,7 @@ pub struct VeracruzFilePermission {
     execute : bool,
 }
 
-impl VeracruzFilePermission {
+impl VeracruzFileCapability {
     /// Creates a new file permission.
     #[inline]
     pub fn new(file_name: String, read: bool, write: bool, execute: bool) -> Self {
@@ -162,13 +183,13 @@ pub struct VeracruzProgram {
     /// program provider.
     pi_hash : String,
     /// The file permission that specifies the program's ability to read, write and execute files.
-    file_permissions : Vec<VeracruzFilePermission>,
+    file_permissions : Vec<VeracruzFileCapability>,
 }
 
 impl VeracruzProgram {
     /// Creates a veracruz program.
     #[inline]
-    pub fn new(program_file_name: String, id: u32, pi_hash: String, file_permissions : Vec<VeracruzFilePermission>) -> Self {
+    pub fn new(program_file_name: String, id: u32, pi_hash: String, file_permissions : Vec<VeracruzFileCapability>) -> Self {
         Self {
             program_file_name,
             id,
@@ -197,7 +218,7 @@ impl VeracruzProgram {
 
     /// Return file permissions associated to the program.
     #[inline]
-    pub fn file_permissions(&self) -> &[VeracruzFilePermission] {
+    pub fn file_permissions(&self) -> &[VeracruzFileCapability] {
         self.file_permissions.as_slice()
     }
 }
@@ -256,14 +277,14 @@ pub struct VeracruzIdentity<U> {
     /// on for the Veracruz computation.
     roles: Vec<VeracruzRole>,
     /// The file permission that specifies this principal's ability to read, write and execute files.
-    file_permissions : Vec<VeracruzFilePermission>,
+    file_permissions : Vec<VeracruzFileCapability>,
 }
 
 impl<U> VeracruzIdentity<U> {
     /// Creates a new identity from a certificate, and identifier.  Initially,
     /// we keep the set of roles empty.
     #[inline]
-    pub fn new(certificate: U, id: u32, roles: Vec<VeracruzRole>, file_permissions : Vec<VeracruzFilePermission>) -> Self {
+    pub fn new(certificate: U, id: u32, roles: Vec<VeracruzRole>, file_permissions : Vec<VeracruzFileCapability>) -> Self {
         Self {
             certificate,
             id,
@@ -299,7 +320,7 @@ impl<U> VeracruzIdentity<U> {
 
     /// Returns `true` iff the principal has the role, `role`.
     #[inline]
-    pub fn file_permissions(&self) -> &[VeracruzFilePermission] {
+    pub fn file_permissions(&self) -> &[VeracruzFileCapability] {
         self.file_permissions.as_slice()
     }
 
@@ -450,10 +471,13 @@ impl VeracruzExpiry {
 /// a computation is "safe" or not for them to join.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VeracruzPolicy {
+    // TODO: change to ID -> Identity
     /// The identities of every principal involved in a computation.
     identities: Vec<VeracruzIdentity<String>>,
+    // TODO: change to Program_file_name -> VeracruzProgram, i.e hash.
     /// The candidate programs that can be loaded in the execution engine.
     programs : Vec<VeracruzProgram>,
+    //TODO: add permission table: VeracruzCapabilityIndex -> file_name -> Vec<permission>.
     /// The URL of the Sinaloa server.
     sinaloa_url: String,
     /// The expiry of the enclave's self-signed certificate, which will be
@@ -469,6 +493,7 @@ pub struct VeracruzPolicy {
     mexico_city_hash_tz: Option<String>,
     /// The hash of the Veracruz trusted runtime for AWS Nitro Enclaves.
     mexico_city_hash_nitro: Option<String>,
+    //TODO: remove
     /// The declared ordering of data inputs, provided by the various data
     /// providers, as specified in the policy.  Note that data providers can
     /// provision their inputs asynchronously, and in an arbitrary order.  Once
@@ -484,6 +509,7 @@ pub struct VeracruzPolicy {
     debug: bool,
     /// The execution strategy that will be used to execute the WASM binary.
     execution_strategy: ExecutionStrategy,
+    //TODO: remove
     /// The declared ordering of stream package data inputs, provided by the various data
     /// providers, as specified in the policy.  Note that data providers can
     /// provision their inputs asynchronously, and in an arbitrary order.  Once
@@ -771,5 +797,70 @@ impl VeracruzPolicy {
         Err(VeracruzUtilError::InvalidClientCertificateError(
             cert.to_string(),
         ))
+    }
+
+    pub fn get_capability_table(&self) -> VeracruzCapabilityTable {
+        let mut table = HashMap::new();
+        for identity in self.identities() {
+            let VeracruzIdentity {
+                id,
+                file_permissions,
+                ..
+            } = identity;
+            let capabilities_table = Self::to_capabilities(file_permissions);
+            table.insert(VeracruzCapabilityIndex::Principal(*id as u64),capabilities_table);
+        }
+        for program in self.programs() {
+            let VeracruzProgram{
+                program_file_name,
+                file_permissions,
+                ..
+            } = program;
+            let capabilities_table = Self::to_capabilities(file_permissions);
+            table.insert(VeracruzCapabilityIndex::Program(program_file_name.to_string()),capabilities_table);
+        }
+        table
+    }
+
+    fn to_capabilities(file_permissions : &[VeracruzFileCapability]) -> HashMap<String, HashSet<VeracruzCapability>> {
+        let mut capabilities_table = HashMap::new();
+        for permission in file_permissions {
+            let (file_name,capabilities) = Self::to_capability_entry(permission);
+            capabilities_table.insert(file_name,capabilities);
+        }
+        capabilities_table 
+    }
+
+    fn to_capability_entry(VeracruzFileCapability {
+                    file_name,
+                    read,
+                    write,
+                    execute,
+                } : &VeracruzFileCapability) -> (String, HashSet<VeracruzCapability>) {
+
+        let mut capabilities = HashSet::new();
+        if *read {
+            capabilities.insert(VeracruzCapability::Read);
+        }
+        if *write {
+            capabilities.insert(VeracruzCapability::Write);
+        }
+        if *execute {
+            capabilities.insert(VeracruzCapability::Execute);
+        }
+        (file_name.to_string(), capabilities)
+    }
+
+    pub fn get_program_digests(&self) -> HashMap<String, Vec<u8>> {
+        let mut table = HashMap::new();
+        for program in self.programs() {
+            let VeracruzProgram{
+                program_file_name,
+                pi_hash,
+                ..
+            } = program;
+            table.insert(program_file_name.to_string(),pi_hash.as_bytes().to_vec());
+        }
+        table
     }
 }

@@ -199,6 +199,29 @@ impl Durango {
             policy_json.as_bytes(),
         ));
         let policy = veracruz_utils::VeracruzPolicy::from_json(&policy_json)?;
+
+        Self::with_policy_and_hash(
+            client_cert_filename,
+            client_key_filename,
+            policy,
+            policy_hash,
+        )
+    }
+
+    /// Load the client certificate and key, and the global policy, which contains information
+    /// about the enclave. This takes the global policy as a VeracruzPolicy struct and
+    /// related hash.
+    /// Attest the enclave.
+    pub fn with_policy_and_hash<P1, P2>(
+        client_cert_filename: P1,
+        client_key_filename: P2,
+        policy: VeracruzPolicy,
+        policy_hash: String,
+    ) -> Result<Durango, DurangoError>
+    where
+        P1: AsRef<path::Path>,
+        P2: AsRef<path::Path>
+    {
         let client_cert = Self::read_cert(&client_cert_filename)?;
         let client_priv_key = Self::read_private_key(&client_key_filename)?;
 
@@ -234,7 +257,7 @@ impl Durango {
             tls_session: session,
             remote_session_id: None,
             policy: policy,
-            policy_hash: policy_hash.to_string(),
+            policy_hash: policy_hash,
             package_id: 0,
             client_cert: client_cert_string,
         })

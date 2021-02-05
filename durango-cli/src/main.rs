@@ -95,16 +95,8 @@ fn main() {
 
     // load policy
     info!("Loading policy {:?}", opt.policy_path);
-    let policy_json = match std::fs::read_to_string(&opt.policy_path) {
-        Ok(policy_json) => policy_json,
-        Err(_) => {
-            error!("Cannot open file {:?}", opt.policy_path);
-            process::exit(1);
-        }
-    };
-
-    let (policy, policy_hash) = match veracruz_utils::policy_and_hash_from_json(
-        &policy_json
+    let (policy, policy_hash) = match veracruz_utils::policy_and_hash_from_file(
+        &opt.policy_path
     ) {
         Ok((policy, policy_hash)) => (policy, policy_hash),
         Err(err) => {
@@ -115,11 +107,11 @@ fn main() {
     info!("Loaded policy {}", policy_hash);
 
     // create Durango instance
-    // TODO allow AsRef<VeracruzPolicy>?
-    let mut durango = match Durango::new(
+    let mut durango = match Durango::with_policy_and_hash(
         opt.identity,
         opt.key,
-        &policy_json,
+        policy.clone(),
+        policy_hash,
     ) {
         Ok(durango) => durango,
         Err(err) => {

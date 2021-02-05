@@ -114,28 +114,11 @@ fn main() {
     };
     info!("Loaded policy {}", policy_hash);
 
-    // need to convert to str for Durango
-    // TODO allow Durango to accept Paths?
-    let client_cert_path = match opt.identity.to_str() {
-        Some(client_cert_path) => client_cert_path,
-        None => {
-            error!("Invalid client_cert_path (not utf8?)");
-            process::exit(1);
-        }
-    };
-    let client_key_path = match opt.key.to_str() {
-        Some(client_key_path) => client_key_path,
-        None => {
-            error!("Invalid client_key_path (not utf8?)");
-            process::exit(1);
-        }
-    };
-
     // create Durango instance
     // TODO allow AsRef<VeracruzPolicy>?
     let mut durango = match Durango::new(
-        client_cert_path,
-        client_key_path,
+        opt.identity,
+        opt.key,
         &policy_json,
     ) {
         Ok(durango) => durango,

@@ -51,21 +51,11 @@ fn main() {
     };
     info!("Loaded policy {}", policy_hash);
 
-    // need to convert to str for Sinaloa
-    // TODO allow Sinaloa to accept Paths?
-    let policy_path = match opt.policy_path.to_str() {
-        Some(policy_path) => policy_path,
-        None => {
-            error!("Invalid policy_path (not utf8?)");
-            process::exit(1);
-        }
-    };
-
     // create Actix runtime
     let mut sys = actix_rt::System::new("Sinaloa Server");
 
     // create Sinaloa server instance
-    let sinaloa_server = match sinaloa::server::server(policy_path) {
+    let sinaloa_server = match sinaloa::server::server(opt.policy_path) {
         Ok(sinaloa_server) => sinaloa_server,
         Err(err) => {
             error!("{}", err);

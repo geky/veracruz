@@ -170,8 +170,9 @@ pub fn serialize_quote(quote: &sgx_types::sgx_quote_t) -> colima::SgxQuote {
 }
 
 /// Serialize a program binary.
-pub fn serialize_program(program_buffer: &[u8]) -> ColimaResult {
+pub fn serialize_program(program_buffer: &[u8], file_name: &str) -> ColimaResult {
     let mut program = colima::Program::new();
+    program.set_file_name(file_name.to_string());
     program.set_code(program_buffer.to_vec());
     let mut abs = colima::MexicoCityRequest::new();
     abs.set_program(program);

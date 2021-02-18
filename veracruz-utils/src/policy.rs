@@ -654,6 +654,7 @@ impl VeracruzPolicy {
     }
 
     /// Returns the hash of the WASM binary, associated with this policy.
+    #[deprecated]
     #[inline]
     pub fn pi_hash(&self, program_file_name : &str) -> Result<&str, VeracruzUtilError> {
         self.programs.iter().find(|VeracruzProgram{program_file_name : p, ..}| program_file_name == p)
@@ -859,7 +860,7 @@ impl VeracruzPolicy {
                 pi_hash,
                 ..
             } = program;
-            table.insert(program_file_name.to_string(),pi_hash.as_bytes().to_vec());
+            table.insert(program_file_name.to_string(),hex::encode(pi_hash).as_bytes().to_vec());
         }
         table
     }

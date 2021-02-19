@@ -64,6 +64,8 @@ pub enum VeracruzUtilError {
     SystemTimeError(#[error(source)] std::time::SystemTimeError),
     #[error(display = "VeracruzUtil: unauthorized client certificate: {}.", _0)]
     InvalidClientCertificateError(String),
+    #[error(display = "VeracruzUtil: HexDecodeError: {:?}.", _0)]
+    HexDecodeError(String),
     #[error(display = "VeracruzUtil: Enclave expired.")]
     EnclaveExpireError,
     #[error(display = "VeracruzUtil: Certificate expired: {:?}.", _0)]
@@ -852,7 +854,7 @@ impl VeracruzPolicy {
         (file_name.to_string(), capabilities)
     }
 
-    pub fn get_program_digests(&self) -> HashMap<String, Vec<u8>> {
+    pub fn get_program_digests(&self) -> Result<HashMap<String, Vec<u8>>,VeracruzUtilError> {
         let mut table = HashMap::new();
         for program in self.programs() {
             let VeracruzProgram{
@@ -860,8 +862,8 @@ impl VeracruzPolicy {
                 pi_hash,
                 ..
             } = program;
-            table.insert(program_file_name.to_string(),hex::encode(pi_hash).as_bytes().to_vec());
+            table.insert(program_file_name.to_string(),hex::decode(pi_hash).map_err(|_e|VeracruzUtilError::HexDecodeError(program_file_name.to_string()))?);
         }
-        table
+        Ok(table)
     }
 }

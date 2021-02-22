@@ -866,4 +866,28 @@ impl VeracruzPolicy {
         }
         Ok(table)
     }
+
+    pub fn get_input_table(&self) -> Result<HashMap<String, Vec<String>>, VeracruzUtilError> {
+        let mut table = HashMap::new();
+        for program in self.programs() {
+            let VeracruzProgram{
+                program_file_name,
+                file_permissions,
+                ..
+            } = program;
+            table.insert(program_file_name.to_string(),Self::get_required_inputs(file_permissions));
+        }
+        Ok(table)
+    }
+
+    fn get_required_inputs(cap : &[VeracruzFileCapability] )-> Vec<String> {
+        let mut rst = cap.iter().fold(Vec::new(), |mut acc, x| {
+            if x.read() {
+                acc.push(x.file_name.to_string());
+            }
+            acc
+        });
+        rst.sort();
+        rst
+    }
 }

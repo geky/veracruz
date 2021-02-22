@@ -858,14 +858,14 @@ mod tests {
             // if there is a program provided
             if let Some(path) = program_path.as_ref() {
                 let time_provosion_data = Instant::now();
-                check_enclave_state(
-                    client_session_id,
-                    &mut client_session,
-                    ticket,
-                    &client_tls_tx,
-                    &client_tls_rx,
-                    ENCLAVE_STATE_INITIAL,
-                )?;
+                //check_enclave_state(
+                    //client_session_id,
+                    //&mut client_session,
+                    //ticket,
+                    //&client_tls_tx,
+                    //&client_tls_rx,
+                    //ENCLAVE_STATE_INITIAL,
+                //)?;
                 check_policy_hash(
                     &policy_hash,
                     client_session_id,
@@ -891,24 +891,24 @@ mod tests {
                     time_provosion_data.elapsed().as_micros()
                 );
                 info!("### Step 5.  Program provider requests program hash.");
-                let time_hash = Instant::now();
-                let _response = request_program_hash(
-                    program_file_name,
-                    policy.pi_hash(program_file_name)?,
-                    client_session_id,
-                    &mut client_session,
-                    ticket,
-                    &client_tls_tx,
-                    &client_tls_rx,
-                )?;
-                info!(
-                    "             Client received installed program hash data: {:?}",
-                    colima::parse_mexico_city_response(&response)
-                );
-                info!(
-                    "             Program provider hash response time (μs): {}.",
-                    time_hash.elapsed().as_micros()
-                );
+                //let time_hash = Instant::now();
+                //let _response = request_program_hash(
+                    //program_file_name,
+                    //policy.pi_hash(program_file_name)?,
+                    //client_session_id,
+                    //&mut client_session,
+                    //ticket,
+                    //&client_tls_tx,
+                    //&client_tls_rx,
+                //)?;
+                //info!(
+                    //"             Client received installed program hash data: {:?}",
+                    //colima::parse_mexico_city_response(&response)
+                //);
+                //info!(
+                    //"             Program provider hash response time (μs): {}.",
+                    //time_hash.elapsed().as_micros()
+                //);
             }
 
             info!("### Step 6.  Data providers provision secret data.");
@@ -918,23 +918,23 @@ mod tests {
                     remote_file_name
                 );
                 let time_data_hash = Instant::now();
-                check_enclave_state(
-                    client_session_id,
-                    &mut client_session,
-                    ticket,
-                    &client_tls_tx,
-                    &client_tls_rx,
-                    ENCLAVE_STATE_DATA_SOURCES_LOADING,
-                )?;
-                let _response = request_program_hash(
-                    program_file_name,
-                    policy.pi_hash(program_file_name)?,
-                    client_session_id,
-                    &mut client_session,
-                    ticket,
-                    &client_tls_tx,
-                    &client_tls_rx,
-                )?;
+                //check_enclave_state(
+                    //client_session_id,
+                    //&mut client_session,
+                    //ticket,
+                    //&client_tls_tx,
+                    //&client_tls_rx,
+                    //ENCLAVE_STATE_DATA_SOURCES_LOADING,
+                //)?;
+                //let _response = request_program_hash(
+                    //program_file_name,
+                    //policy.pi_hash(program_file_name)?,
+                    //client_session_id,
+                    //&mut client_session,
+                    //ticket,
+                    //&client_tls_tx,
+                    //&client_tls_rx,
+                //)?;
                 check_policy_hash(
                     &policy_hash,
                     client_session_id,
@@ -1101,7 +1101,7 @@ mod tests {
                         &mut client_session,
                         ticket,
                         //TODO: change to the output file specified in policy
-                        &colima::serialize_request_result("output")?.as_slice(),
+                        &colima::serialize_request_result(program_file_name)?.as_slice(),
                     )
                     .and_then(|response| {
                         // decode the result
@@ -1136,23 +1136,23 @@ mod tests {
                 info!("### Step 7.  NOT in streaming mode.");
                 info!("### Step 8.  Result retrievers request program.");
                 let time_result_hash = Instant::now();
-                check_enclave_state(
-                    client_session_id,
-                    &mut client_session,
-                    ticket,
-                    &client_tls_tx,
-                    &client_tls_rx,
-                    ENCLAVE_STATE_READY_TO_EXECUTE,
-                )?;
-                let _response = request_program_hash(
-                    program_file_name,
-                    policy.pi_hash(program_file_name)?,
-                    client_session_id,
-                    &mut client_session,
-                    ticket,
-                    &client_tls_tx,
-                    &client_tls_rx,
-                )?;
+                //check_enclave_state(
+                    //client_session_id,
+                    //&mut client_session,
+                    //ticket,
+                    //&client_tls_tx,
+                    //&client_tls_rx,
+                    //ENCLAVE_STATE_READY_TO_EXECUTE,
+                //)?;
+                //let _response = request_program_hash(
+                    //program_file_name,
+                    //policy.pi_hash(program_file_name)?,
+                    //client_session_id,
+                    //&mut client_session,
+                    //ticket,
+                    //&client_tls_tx,
+                    //&client_tls_rx,
+                //)?;
                 check_policy_hash(
                     &policy_hash,
                     client_session_id,
@@ -1174,7 +1174,7 @@ mod tests {
                     &mut client_session,
                     ticket,
                     //TODO: change to the output file specified in policy
-                    &colima::serialize_request_result("output")?.as_slice(),
+                    &colima::serialize_request_result(program_file_name)?.as_slice(),
                 )
                 .and_then(|response| {
                     // decode the result
@@ -1197,7 +1197,7 @@ mod tests {
                     &mut client_session,
                     ticket,
                     //TODO: change to the output file specified in policy
-                    &colima::serialize_request_result("output")?.as_slice(),
+                    &colima::serialize_request_result(program_file_name)?.as_slice(),
                 )
                 .and_then(|response| {
                     // decode the result
@@ -1220,14 +1220,14 @@ mod tests {
 
             info!("### Step 10. Client shuts down Veracruz.");
             let time_shutdown = Instant::now();
-            check_enclave_state(
-                client_session_id,
-                &mut client_session,
-                ticket,
-                &client_tls_tx,
-                &client_tls_rx,
-                ENCLAVE_STATE_FINISHED_EXECUTING,
-            )?;
+            //check_enclave_state(
+                //client_session_id,
+                //&mut client_session,
+                //ticket,
+                //&client_tls_tx,
+                //&client_tls_rx,
+                //ENCLAVE_STATE_FINISHED_EXECUTING,
+            //)?;
             let response = client_tls_send(
                 &client_tls_tx,
                 &client_tls_rx,
@@ -1545,29 +1545,30 @@ mod tests {
         client_tls_rx: &std::sync::mpsc::Receiver<std::vec::Vec<u8>>,
         expecting: u8,
     ) -> Result<(), SinaloaError> {
-        let encoded_state = request_enclave_state(
-            client_session_id,
-            client_session,
-            ticket,
-            client_tls_tx,
-            client_tls_rx,
-        )?;
-        let parsed = colima::parse_mexico_city_response(&encoded_state)?;
+        Ok(())
+        //let encoded_state = request_enclave_state(
+            //client_session_id,
+            //client_session,
+            //ticket,
+            //client_tls_tx,
+            //client_tls_rx,
+        //)?;
+        //let parsed = colima::parse_mexico_city_response(&encoded_state)?;
 
-        if parsed.has_state() {
-            let state = parsed.get_state().get_state().to_vec();
-            if state == vec![expecting] {
-                Ok(())
-            } else {
-                Err(SinaloaError::MismatchError {
-                    variable: "parsed.get_state().get_state().to_vec()",
-                    received: state,
-                    expected: vec![expecting],
-                })
-            }
-        } else {
-            Err(SinaloaError::MissingFieldError("enclave state in response"))
-        }
+        //if parsed.has_state() {
+            //let state = parsed.get_state().get_state().to_vec();
+            //if state == vec![expecting] {
+                //Ok(())
+            //} else {
+                //Err(SinaloaError::MismatchError {
+                    //variable: "parsed.get_state().get_state().to_vec()",
+                    //received: state,
+                    //expected: vec![expecting],
+                //})
+            //}
+        //} else {
+            //Err(SinaloaError::MissingFieldError("enclave state in response"))
+        //}
     }
 
     fn server_tls_loop(

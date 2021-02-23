@@ -71,6 +71,7 @@ fn response_success(result: Option<Vec<u8>>) -> Vec<u8> {
 /// Encodes an error code that the virtual machine program produced, ready for
 /// transmission back to swhoever requested a result.
 fn response_error_code_returned(error_code: &i32) -> std::vec::Vec<u8> {
+    assert!(false);
     colima::serialize_result(
         colima::ResponseStatus::FAILED_ERROR_CODE_RETURNED as i32,
         Some(error_code.to_le_bytes().to_vec()),
@@ -81,6 +82,7 @@ fn response_error_code_returned(error_code: &i32) -> std::vec::Vec<u8> {
 /// Encodes an error code indicating that the enclace is not ready to receive a
 /// particular type of message.
 fn response_not_ready() -> super::ProvisioningResult {
+    assert!(false);
     let rst = colima::serialize_result(colima::ResponseStatus::FAILED_NOT_READY as i32, None)?;
     Ok(super::ProvisioningResponse::ProtocolError { response: rst })
 }
@@ -88,6 +90,7 @@ fn response_not_ready() -> super::ProvisioningResult {
 /// Encodes an error code indicating that a principal with an invalid role tried
 /// to perform an action.
 fn response_invalid_role() -> super::ProvisioningResult {
+    assert!(false);
     let rst = colima::serialize_result(colima::ResponseStatus::FAILED_INVALID_ROLE as i32, None)?;
     Ok(super::ProvisioningResponse::ProtocolError { response: rst })
 }
@@ -95,6 +98,7 @@ fn response_invalid_role() -> super::ProvisioningResult {
 /// Encodes an error code indicating that somebody sent an invalid or malformed
 /// protocol request.
 fn response_invalid_request() -> super::ProvisioningResult {
+    assert!(false);
     let rst =
         colima::serialize_result(colima::ResponseStatus::FAILED_INVALID_REQUEST as i32, None)?;
     Ok(super::ProvisioningResponse::ProtocolError { response: rst })
@@ -138,15 +142,15 @@ fn dispatch_on_request_state(protocol_state: &ProtocolState) -> ProvisioningResu
 /// we are not in the `LifecycleState::ReadyToExecute` state.
 fn dispatch_on_result(colima::RequestResult{ file_name, .. } : colima::RequestResult, protocol_state: &ProtocolState, client_id: u64,) -> ProvisioningResult {
     // TODO check file exists
-    //if check_state(
-        //&protocol_state.get_lifecycle_state()?,
-        //&[LifecycleState::FinishedExecuting],
-    //) {
-        ////TODO: read the actually file.
-        //let result = protocol_state.read_file(client_id,"output")?;
-        //let response = response_success(result);
-        //return Ok(ProvisioningResponse::Success { response });
-    //}
+    if check_state(
+        &protocol_state.get_lifecycle_state()?,
+        &[LifecycleState::FinishedExecuting],
+    ) {
+        //TODO: read the actually file.
+        let result = protocol_state.read_file(client_id,"output")?;
+        let response = response_success(result);
+        return Ok(ProvisioningResponse::Success { response });
+    }
 
     //TODO: USE THE FILE_NAME 
     //if check_state(
@@ -324,7 +328,7 @@ fn dispatch_on_stream(
     //) {
         //TODO: REPLACE BY FS API
         let package_id = file_name.strip_prefix("stream-").unwrap().parse::<u64>().unwrap();
-        let frame = DataSourceMetadata::new(&data, client_id, package_id as u64);
+        //let frame = DataSourceMetadata::new(&data, client_id, package_id as u64);
 
         if let Err(error) = protocol_state.write_file(client_id,file_name.as_str(),data.as_slice()) {
             // If something critical went wrong (e.g. all data was provisioned,
@@ -363,20 +367,27 @@ fn dispatch_on_stream(
 fn dispatch_on_next_round(
     protocol_state: &mut ProtocolState,
 ) -> (Option<ProtocolState>, ProvisioningResult) {
+    //TODO NOT WORKING?
+    //protocol_state.set_previous_result(&protocol_state.get_result()?)?;
+    (None, Ok(ProvisioningResponse::Success {
+        response: response_success(None),
+    }))
+
+
     //let lifecycle_state = match protocol_state.get_lifecycle_state() {
         //Ok(o) => o,
         //Err(e) => return (None, Err(e)),
     //};
     //if check_state(&lifecycle_state, &[LifecycleState::FinishedExecuting]) {
-        match reload(protocol_state) {
-            Ok(o) => (
-                Some(o),
-                Ok(ProvisioningResponse::Success {
-                    response: response_success(None),
-                }),
-            ),
-            Err(e) => (None, Err(e)),
-        }
+        //match reload(protocol_state) {
+            //Ok(o) => (
+                //Some(o),
+                //Ok(ProvisioningResponse::Success {
+                    //response: response_success(None),
+                //}),
+            //),
+            //Err(e) => (None, Err(e)),
+        //}
     //} else {
         //(None, response_not_ready())
     //}
@@ -388,8 +399,9 @@ fn reload(old_protocol_state: &ProtocolState) -> Result<ProtocolState, MexicoCit
         format!("{}", old_protocol_state.get_policy_hash()),
     )?;
     new_protocol_state.set_previous_result(&old_protocol_state.get_result()?)?;
-    let buffer = PROG_AND_DATA_BUFFER.lock()?;
-    new_protocol_state.load_program(buffer.get_program()?)?;
+    new_protocol_state.set_vfs(old_protocol_state.get_vfs()?)?;
+    //let buffer = PROG_AND_DATA_BUFFER.lock()?;
+    //new_protocol_state.load_program(buffer.get_program()?)?;
     //let all_data = buffer.all_data()?;
     //for data in all_data {
         //new_protocol_state.add_new_data_source(data)?;
@@ -416,31 +428,31 @@ fn dispatch_on_request(
 
     match request {
         MESSAGE::data(data) => {
-            if check_roles(roles, &[VeracruzRole::DataProvider]) {
+            //if check_roles(roles, &[VeracruzRole::DataProvider]) {
                 dispatch_on_data(protocol_state, data, client_id)
-            } else {
-                response_invalid_role()
-            }
+            //} else {
+                //response_invalid_role()
+            //}
         }
         MESSAGE::program(prog) => {
-            if check_roles(roles, &[VeracruzRole::ProgramProvider]) {
-                dispatch_on_program(protocol_state, prog)
-            } else {
-                response_invalid_role()
-            }
+            //if check_roles(roles, &[VeracruzRole::ProgramProvider]) {
+                dispatch_on_program(protocol_state, prog, client_id)
+            //} else {
+                //response_invalid_role()
+            //}
         }
         MESSAGE::request_pi_hash(pi_hash_request) => dispatch_on_pi_hash(pi_hash_request, protocol_state),
         MESSAGE::request_policy_hash(_) => dispatch_on_policy_hash(protocol_state),
         MESSAGE::request_result(result_request) => {
-            if check_roles(roles, &[VeracruzRole::ResultReader]) {
+            //if check_roles(roles, &[VeracruzRole::ResultReader]) {
                 dispatch_on_result(result_request,protocol_state,client_id)
-            } else {
-                response_invalid_role()
-            }
+            //} else {
+                //response_invalid_role()
+            //}
         }
         MESSAGE::request_state(_) => dispatch_on_request_state(protocol_state),
         MESSAGE::request_shutdown(_) => {
-            if check_roles(roles, &[VeracruzRole::ResultReader]) {
+            //if check_roles(roles, &[VeracruzRole::ResultReader]) {
                 let (is_dead, response) = dispatch_on_shutdown(protocol_state, client_id.into())?;
 
                 // If we're not alive, clobber the global lock guarding the
@@ -450,25 +462,25 @@ fn dispatch_on_request(
                 }
 
                 response
-            } else {
-                response_invalid_role()
-            }
+            //} else {
+                //response_invalid_role()
+            //}
         }
         MESSAGE::stream(stream) => {
-            if check_roles(roles, &vec![veracruz_utils::VeracruzRole::DataProvider]) {
+            //if check_roles(roles, &vec![veracruz_utils::VeracruzRole::DataProvider]) {
                 dispatch_on_stream(protocol_state, stream, client_id)
-            } else {
-                response_invalid_role()
-            }
+            //} else {
+                //response_invalid_role()
+            //}
         }
         MESSAGE::request_next_round(_) => {
-            if check_roles(roles, &vec![veracruz_utils::VeracruzRole::ResultReader]) {
+            //if check_roles(roles, &vec![veracruz_utils::VeracruzRole::ResultReader]) {
                 let (new_protocol_state, response) = dispatch_on_next_round(protocol_state);
-                *protocol_state_guard = new_protocol_state;
+                //*protocol_state_guard = new_protocol_state;
                 response
-            } else {
-                response_invalid_role()
-            }
+            //} else {
+                //response_invalid_role()
+            //}
         }
         _otherwise => response_invalid_request(),
     }

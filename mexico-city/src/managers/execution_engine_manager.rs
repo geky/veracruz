@@ -71,7 +71,6 @@ fn response_success(result: Option<Vec<u8>>) -> Vec<u8> {
 /// Encodes an error code that the virtual machine program produced, ready for
 /// transmission back to swhoever requested a result.
 fn response_error_code_returned(error_code: &i32) -> std::vec::Vec<u8> {
-    assert!(false);
     colima::serialize_result(
         colima::ResponseStatus::FAILED_ERROR_CODE_RETURNED as i32,
         Some(error_code.to_le_bytes().to_vec()),
@@ -113,13 +112,13 @@ fn response_invalid_request() -> super::ProvisioningResult {
 fn dispatch_on_pi_hash(colima::RequestPiHash {file_name, .. } : colima::RequestPiHash, protocol_state: &ProtocolState) -> ProvisioningResult {
     // The digest is computed by Veracruz when the program is provisioned.  If
     // there's no digest, then we must not have been given a program yet.
-    match protocol_state.get_program_digest()? {
-        None => response_not_ready(),
-        Some(digest) => {
-            let response = colima::serialize_pi_hash(&digest)?;
+    //match protocol_state.get_program_digest()? {
+        //None => response_not_ready(),
+        //Some(digest) => {
+            let response = colima::serialize_pi_hash(b"deprecated")?;
             Ok(ProvisioningResponse::Success { response })
-        }
-    }
+        //}
+    //}
 }
 
 /// Returns the SHA-256 digest of the policy.
@@ -369,9 +368,9 @@ fn dispatch_on_next_round(
 ) -> (Option<ProtocolState>, ProvisioningResult) {
     //TODO NOT WORKING?
     //protocol_state.set_previous_result(&protocol_state.get_result()?)?;
-    (None, Ok(ProvisioningResponse::Success {
-        response: response_success(None),
-    }))
+    //(None, Ok(ProvisioningResponse::Success {
+        //response: response_success(None),
+    //}))
 
 
     //let lifecycle_state = match protocol_state.get_lifecycle_state() {
@@ -379,15 +378,15 @@ fn dispatch_on_next_round(
         //Err(e) => return (None, Err(e)),
     //};
     //if check_state(&lifecycle_state, &[LifecycleState::FinishedExecuting]) {
-        //match reload(protocol_state) {
-            //Ok(o) => (
-                //Some(o),
-                //Ok(ProvisioningResponse::Success {
-                    //response: response_success(None),
-                //}),
-            //),
-            //Err(e) => (None, Err(e)),
-        //}
+        match reload(protocol_state) {
+            Ok(o) => (
+                Some(o),
+                Ok(ProvisioningResponse::Success {
+                    response: response_success(None),
+                }),
+            ),
+            Err(e) => (None, Err(e)),
+        }
     //} else {
         //(None, response_not_ready())
     //}
@@ -399,7 +398,7 @@ fn reload(old_protocol_state: &ProtocolState) -> Result<ProtocolState, MexicoCit
         format!("{}", old_protocol_state.get_policy_hash()),
     )?;
     new_protocol_state.set_previous_result(&old_protocol_state.get_result()?)?;
-    new_protocol_state.set_vfs(old_protocol_state.get_vfs()?)?;
+    //new_protocol_state.set_vfs(old_protocol_state.get_vfs()?)?;
     //let buffer = PROG_AND_DATA_BUFFER.lock()?;
     //new_protocol_state.load_program(buffer.get_program()?)?;
     //let all_data = buffer.all_data()?;
@@ -476,7 +475,7 @@ fn dispatch_on_request(
         MESSAGE::request_next_round(_) => {
             //if check_roles(roles, &vec![veracruz_utils::VeracruzRole::ResultReader]) {
                 let (new_protocol_state, response) = dispatch_on_next_round(protocol_state);
-                //*protocol_state_guard = new_protocol_state;
+                *protocol_state_guard = new_protocol_state;
                 response
             //} else {
                 //response_invalid_role()

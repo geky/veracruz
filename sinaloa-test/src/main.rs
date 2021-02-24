@@ -1008,6 +1008,7 @@ mod tests {
                     info!("------------ Streaming Round # {} ------------", count);
                     count += 1;
                     for (remote_file_name, data) in next_round_data.iter() {
+                        println!("{:?}",data);
                         let time_stream_hash = Instant::now();
                         //check_enclave_state(
                             //client_session_id,
@@ -1105,11 +1106,8 @@ mod tests {
                     )
                     .and_then(|response| {
                         // decode the result
-                        println!("A");
                         let response = colima::parse_mexico_city_response(&response)?;
-                        println!("B");
                         let response = colima::parse_result(&response)?;
-                        println!("C");
                         response.ok_or(SinaloaError::MissingFieldError(
                             "Result retrievers response",
                         ))

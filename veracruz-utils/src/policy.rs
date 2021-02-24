@@ -111,8 +111,9 @@ pub enum VeracruzCapability {
     Execute,
 }
 
-#[derive(Clone,Hash,PartialEq,Eq,Debug)]
+#[derive(Clone,Hash,PartialEq,Eq,Debug, Serialize, Deserialize)]
 pub enum VeracruzCapabilityIndex {
+    InternalSuperUser,
     // Client ID
     Principal(u64),
     // Program

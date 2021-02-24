@@ -31,11 +31,11 @@ use lazy_static::lazy_static;
 
 use execution_engine::{
     factory::multi_threaded_execution_engine,
-    hcall::common::{ExecutionEngine, DataSourceMetadata, LifecycleState},
+    hcall::common::{ExecutionEngine, LifecycleState},
     hcall::buffer::VFS,
 };
 
-use veracruz_utils::VeracruzPolicy;
+use veracruz_utils::{VeracruzCapabilityIndex, VeracruzPolicy};
 
 pub mod session_manager;
 pub mod buffer;
@@ -122,7 +122,6 @@ impl ProtocolState {
         let capability_table = global_policy.get_capability_table();
         let program_digests = global_policy.get_program_digests()?;
         let input_table = global_policy.get_input_table()?;
-        println!("{:?}",capability_table);
 
         let host_state = multi_threaded_execution_engine(
             &execution_strategy,
@@ -180,25 +179,25 @@ impl ProtocolState {
     }
 
     //TODO: add description
-    pub(crate) fn write_file(&self, client_id: u64, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
+    pub(crate) fn write_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
         Ok(self.host_state.lock()?.write_file(client_id,file_name,data)?)
     }
 
     //TODO: add description
-    pub(crate) fn append_file(&self, client_id: u64, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
+    pub(crate) fn append_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
         Ok(self.host_state.lock()?.append_file(client_id,file_name,data)?)
     }
 
     //TODO: add description
-    pub(crate) fn read_file(&self, client_id: u64, file_name: &str) -> Result<Option<Vec<u8>>, MexicoCityError> {
+    pub(crate) fn read_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str) -> Result<Option<Vec<u8>>, MexicoCityError> {
         Ok(self.host_state.lock()?.read_file(client_id,file_name)?)
     }
 
     //TODO: add description
-    pub(crate) fn register_program(&self, client_id: u64, file_name: &str, prog: &[u8]) -> Result<(), MexicoCityError> {
-        Ok(self.host_state.lock()?.register_program(client_id,file_name,prog)?)
-        //Ok(self.host_state.lock()?.load_program(prog)?)
-    }
+    //pub(crate) fn register_program(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, prog: &[u8]) -> Result<(), MexicoCityError> {
+        //Ok(self.host_state.lock()?.register_program(client_id,file_name,prog)?)
+        ////Ok(self.host_state.lock()?.load_program(prog)?)
+    //}
 
     ///// Provisions a new data source, described using a `DataSourceMetadata`
     ///// frame into the host state.  Will fail if the lifecycle state is not

@@ -240,12 +240,12 @@ impl ProtocolState {
         Ok(self.host_state.lock()?.get_lifecycle_state().clone())
     }
 
-    /// Returns a result of a WASM computation that has executed on the host
-    /// provisioning state.  Returns `None` iff no such result has been
-    /// registered.
-    pub(crate) fn get_result(&self) -> Result<Option<Vec<u8>>, MexicoCityError> {
-        Ok(self.host_state.lock()?.get_result().map(|o| o.clone()))
-    }
+    ///// Returns a result of a WASM computation that has executed on the host
+    ///// provisioning state.  Returns `None` iff no such result has been
+    ///// registered.
+    //pub(crate) fn get_result(&self) -> Result<Option<Vec<u8>>, MexicoCityError> {
+        //Ok(self.host_state.lock()?.get_result().map(|o| o.clone()))
+    //}
 
     ///// Returns a result of a WASM computation that has executed on the host
     ///// provisioning state.  Returns `None` iff no such result has been
@@ -262,14 +262,14 @@ impl ProtocolState {
         //Ok(())
     //}
 
-    /// Sets the `previous_result` field.
-    pub(crate) fn set_previous_result(
-        &mut self,
-        result: &Option<Vec<u8>>,
-    ) -> Result<(), MexicoCityError> {
-        self.host_state.lock()?.set_previous_result(result);
-        Ok(())
-    }
+    ///// Sets the `previous_result` field.
+    //pub(crate) fn set_previous_result(
+        //&mut self,
+        //result: &Option<Vec<u8>>,
+    //) -> Result<(), MexicoCityError> {
+        //self.host_state.lock()?.set_previous_result(result);
+        //Ok(())
+    //}
 
     ///// Returns an SHA-256 digest of the bytes loaded into the host provisioning
     ///// state.  Returns `None` iff no such program has yet been loaded.

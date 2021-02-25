@@ -109,8 +109,6 @@ impl ProtocolState {
         global_policy: VeracruzPolicy,
         global_policy_hash: String,
     ) -> Result<Self, MexicoCityError> {
-        //let expected_data_sources = global_policy.data_provision_order();
-        //let expected_stream_sources = global_policy.stream_provision_order();
         let expected_shutdown_sources = global_policy.expected_shutdown_list();
 
         let execution_strategy = match global_policy.execution_strategy() {
@@ -167,17 +165,6 @@ impl ProtocolState {
      * hidden from the user.
      */
 
-    /// Loads a raw WASM program from a buffer of received or parsed bytes.
-    /// Will fail if the lifecycle state is not in `LifecycleState::Initial` or
-    /// if the buffer cannot be parsed.  On success bumps the lifecycle state to
-    /// `LifecycleState::ReadyToExecute` in cases where no data sources are
-    /// expected (i.e. we are a pure delegate) or
-    /// `LifecycleState::DataSourcesLoading` in cases where we are expecting
-    /// data to be provisioned.
-    pub(crate) fn load_program(&self, buffer: &[u8]) -> Result<(), MexicoCityError> {
-        Ok(self.host_state.lock()?.load_program(buffer)?)
-    }
-
     //TODO: add description
     pub(crate) fn write_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
         Ok(self.host_state.lock()?.write_file(client_id,file_name,data)?)
@@ -193,38 +180,6 @@ impl ProtocolState {
         Ok(self.host_state.lock()?.read_file(client_id,file_name)?)
     }
 
-    //TODO: add description
-    //pub(crate) fn register_program(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, prog: &[u8]) -> Result<(), MexicoCityError> {
-        //Ok(self.host_state.lock()?.register_program(client_id,file_name,prog)?)
-        ////Ok(self.host_state.lock()?.load_program(prog)?)
-    //}
-
-    ///// Provisions a new data source, described using a `DataSourceMetadata`
-    ///// frame into the host state.  Will fail if the lifecycle state is not
-    ///// `LifecycleState::DataSourcesLoading`.  Will bump the lifecycle state to
-    ///// `LifecycleState::StreamSourcesLoading` when the call represents the last
-    ///// data source to be loaded,
-    ///// `LifecycleState::ReadyToExecute` if no stream data is required,
-    ///// or maintains the current lifecycle state.
-    //pub(crate) fn add_new_data_source(
-        //&self,
-        //metadata: DataSourceMetadata,
-    //) -> Result<(), MexicoCityError> {
-        //Ok(self.host_state.lock()?.add_new_data_source(metadata)?)
-    //}
-
-    ///// Provisions a new stream source, described using a `DataSourceMetadata`
-    ///// frame into the host state.  Will fail if the lifecycle state is not
-    ///// `LifecycleState::StreamSourcesLoading`.  Will bump the lifecycle state to
-    ///// `LifecycleState::ReadyToExecute` when the call represents the last
-    ///// data source to be loaded, or maintains the current lifecycle state.
-    //pub(crate) fn add_new_stream_source(
-        //&self,
-        //metadata: DataSourceMetadata,
-    //) -> Result<(), MexicoCityError> {
-        //Ok(self.host_state.lock()?.add_new_stream_source(metadata)?)
-    //}
-
     /// Invokes the entry point of the provisioned WASM program.  Will fail if
     /// the current lifecycle state is not `LifecycleState::ReadyToExecute` or
     /// if the WASM program fails at runtime.  On success, bumps the lifecycle
@@ -239,47 +194,6 @@ impl ProtocolState {
     pub(crate) fn get_lifecycle_state(&self) -> Result<LifecycleState, MexicoCityError> {
         Ok(self.host_state.lock()?.get_lifecycle_state().clone())
     }
-
-    ///// Returns a result of a WASM computation that has executed on the host
-    ///// provisioning state.  Returns `None` iff no such result has been
-    ///// registered.
-    //pub(crate) fn get_result(&self) -> Result<Option<Vec<u8>>, MexicoCityError> {
-        //Ok(self.host_state.lock()?.get_result().map(|o| o.clone()))
-    //}
-
-    ///// Returns a result of a WASM computation that has executed on the host
-    ///// provisioning state.  Returns `None` iff no such result has been
-    ///// registered.
-    //pub(crate) fn get_vfs(&self) -> Result<VFS, MexicoCityError> {
-        //Ok(self.host_state.lock()?.get_vfs().clone())
-    //}
-
-    ///// Returns a result of a WASM computation that has executed on the host
-    ///// provisioning state.  Returns `None` iff no such result has been
-    ///// registered.
-    //pub(crate) fn set_vfs(&self, vfs : VFS) -> Result<(), MexicoCityError> {
-        //self.host_state.lock()?.set_vfs(&vfs);
-        //Ok(())
-    //}
-
-    ///// Sets the `previous_result` field.
-    //pub(crate) fn set_previous_result(
-        //&mut self,
-        //result: &Option<Vec<u8>>,
-    //) -> Result<(), MexicoCityError> {
-        //self.host_state.lock()?.set_previous_result(result);
-        //Ok(())
-    //}
-
-    ///// Returns an SHA-256 digest of the bytes loaded into the host provisioning
-    ///// state.  Returns `None` iff no such program has yet been loaded.
-    //pub(crate) fn get_program_digest(&self) -> Result<Option<Vec<u8>>, MexicoCityError> {
-        //Ok(self
-            //.host_state
-            //.lock()?
-            //.get_program_digest()
-            //.map(|o| o.clone()))
-    //}
 
     /// Moves the host provisioning state's lifecycle state into
     /// `LifecycleState::Error`, a state which it cannot ever escape,

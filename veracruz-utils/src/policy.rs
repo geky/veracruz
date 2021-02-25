@@ -33,7 +33,6 @@ use err_derive::Error;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::{
-    slice::Iter,
     string::{String, ToString},
     vec::Vec,
     collections::{HashMap, HashSet},
@@ -757,25 +756,15 @@ impl VeracruzPolicy {
         Ok(())
     }
 
-    /// Returns an iterator to the list of identities associated with this
-    /// policy.
-    ///
-    /// TODO: where is this used, and why is it needed if we have access to
-    /// the identities through `self.identities()`?
-    #[inline]
-    pub fn iter_on_client<'a>(&'a self) -> Iter<'a, VeracruzIdentity<String>> {
-        self.identities().iter()
-    }
-
     /// Returns the identity of any principal in the computation who is capable
     /// of requesting a shutdown of the computation.  At the moment, only the
     /// principals who can request the result can also request shutdown.
-    pub fn expected_shutdown_list(&self) -> Vec<u32> {
+    pub fn expected_shutdown_list(&self) -> Vec<u64> {
         self.identities()
             .iter()
             .fold(Vec::new(), |mut acc, identity| {
                 if identity.roles.contains(&VeracruzRole::ResultReader) {
-                    acc.push(*identity.id());
+                    acc.push(*identity.id() as u64);
                 }
                 acc
             })

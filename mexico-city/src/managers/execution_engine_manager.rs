@@ -48,13 +48,6 @@ fn check_state(current: &LifecycleState, expected: &[LifecycleState]) -> bool {
     expected.contains(&current)
 }
 
-/// Checks that the expected set of roles is satisfied by the roles possessed
-/// by the current principal.  Returns `false` iff this is not the case.
-#[inline]
-fn check_roles(current: &Vec<VeracruzRole>, expected: &[VeracruzRole]) -> bool {
-    current.iter().any(|rho| expected.contains(rho))
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 // Protocol response messages.
 ////////////////////////////////////////////////////////////////////////////////
@@ -109,15 +102,8 @@ fn response_invalid_request() -> super::ProvisioningResult {
 /// Returns the SHA-256 digest of the provisioned program.  Fails if no hash has
 /// yet been computed.
 fn dispatch_on_pi_hash(colima::RequestPiHash {file_name, .. } : colima::RequestPiHash, protocol_state: &ProtocolState) -> ProvisioningResult {
-    // The digest is computed by Veracruz when the program is provisioned.  If
-    // there's no digest, then we must not have been given a program yet.
-    //match protocol_state.get_program_digest()? {
-        //None => response_not_ready(),
-        //Some(digest) => {
-            let response = colima::serialize_pi_hash(b"deprecated")?;
-            Ok(ProvisioningResponse::Success { response })
-        //}
-    //}
+    let response = colima::serialize_pi_hash(b"deprecated")?;
+    Ok(ProvisioningResponse::Success { response })
 }
 
 /// Returns the SHA-256 digest of the policy.
@@ -254,7 +240,6 @@ fn dispatch_on_stream(
 /// Fails if the enclave is not in `LifecycleState::FinishedExecuting`.
 fn dispatch_on_next_round(
     protocol_state: &mut ProtocolState,
-//) -> (Option<ProtocolState>, ProvisioningResult) {
 ) -> ProvisioningResult {
     match protocol_state.reload() {
         Ok(o) => 
@@ -264,14 +249,6 @@ fn dispatch_on_next_round(
         Err(e) => Err(e),
     }
 }
-///// and loads the current result as the `previous_result` for the new instance.
-//fn reload(old_protocol_state: &ProtocolState) -> Result<ProtocolState, MexicoCityError> {
-    //let new_protocol_state = ProtocolState::new(
-        //old_protocol_state.get_policy().clone(),
-        //format!("{}", old_protocol_state.get_policy_hash()),
-    //)?;
-    //Ok(new_protocol_state)
-//}
 
 /// Branches on a decoded protobuf message, `request`, and invokes appropriate
 /// behaviour from more specialised functions.
@@ -316,10 +293,7 @@ fn dispatch_on_request(
             dispatch_on_stream(protocol_state, stream, client_id)
         }
         MESSAGE::request_next_round(_) => {
-            //let (new_protocol_state, response) = dispatch_on_next_round(protocol_state);
-            let response = dispatch_on_next_round(protocol_state);
-            //*protocol_state_guard = new_protocol_state;
-            response
+            dispatch_on_next_round(protocol_state)
         }
         _otherwise => response_invalid_request(),
     }

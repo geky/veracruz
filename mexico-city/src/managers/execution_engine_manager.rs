@@ -40,18 +40,19 @@ lazy_static! {
 // Utility functions.
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Checks that the host provisioning state is in one of a number of expected
-/// states, otherwise raises an error with an error message detailing the
-/// mismatch.
-#[inline]
-fn check_state(current: &LifecycleState, expected: &[LifecycleState]) -> bool {
-    expected.contains(&current)
-}
+///// Checks that the host provisioning state is in one of a number of expected
+///// states, otherwise raises an error with an error message detailing the
+///// mismatch.
+//#[inline]
+//fn check_state(current: &LifecycleState, expected: &[LifecycleState]) -> bool {
+    //expected.contains(&current)
+//}
 
 ////////////////////////////////////////////////////////////////////////////////
 // Protocol response messages.
 ////////////////////////////////////////////////////////////////////////////////
 
+//TODO: wrap inside protocol_state
 /// Encodes a successful computation result, ready for transmission back to whoever requested a
 /// result.
 #[inline]
@@ -101,7 +102,7 @@ fn response_invalid_request() -> super::ProvisioningResult {
 
 /// Returns the SHA-256 digest of the provisioned program.  Fails if no hash has
 /// yet been computed.
-fn dispatch_on_pi_hash(colima::RequestPiHash {file_name, .. } : colima::RequestPiHash, protocol_state: &ProtocolState) -> ProvisioningResult {
+fn dispatch_on_pi_hash(_ : colima::RequestPiHash, protocol_state: &ProtocolState) -> ProvisioningResult {
     let response = colima::serialize_pi_hash(b"deprecated")?;
     Ok(ProvisioningResponse::Success { response })
 }
@@ -116,43 +117,22 @@ fn dispatch_on_policy_hash(protocol_state: &ProtocolState) -> ProvisioningResult
 /// Returns the current lifecycle state of the host provisioning state.  This
 /// state can be queried unconditionally (though it may change between the query
 /// being serviced and being received back/being acted upon...)
-fn dispatch_on_request_state(protocol_state: &ProtocolState) -> ProvisioningResult {
+fn dispatch_on_request_state(_ : &ProtocolState) -> ProvisioningResult {
+    //TODO REMOVE???
     let response =
-        colima::serialize_machine_state(u8::from(protocol_state.get_lifecycle_state()?))?;
+        colima::serialize_machine_state(u8::from(0))?;
     Ok(ProvisioningResponse::Success { response })
 }
 
 /// Returns the result of a computation, computing the result first.  Fails if
 /// we are not in the `LifecycleState::ReadyToExecute` state.
-fn dispatch_on_result(colima::RequestResult{ file_name, .. } : colima::RequestResult, protocol_state: &ProtocolState, client_id: u64,) -> ProvisioningResult {
-    // TODO check if file  has been modified exists
-    if check_state(
-        &protocol_state.get_lifecycle_state()?,
-        &[LifecycleState::FinishedExecuting],
-    ) {
-        //TODO: read the actually file.
+fn dispatch_on_result(colima::RequestResult{ file_name, .. } : colima::RequestResult, protocol_state: &mut ProtocolState, client_id: u64,) -> ProvisioningResult {
+    if !protocol_state.is_modified() {
         let result = protocol_state.read_file(&VeracruzCapabilityIndex::Principal(client_id),"output")?;
         let response = response_success(result);
         return Ok(ProvisioningResponse::Success { response });
     }
-
-    // TODO: MOVE OUT OF THIS FUNCTION??
-    match protocol_state.invoke_entry_point(&file_name) {
-        Ok(return_code) => {
-
-            if return_code == 0 {
-                let result = protocol_state.read_file(&VeracruzCapabilityIndex::Principal(client_id),"output")?;
-                let response = response_success(result);
-                Ok(ProvisioningResponse::Success { response })
-            } else {
-                let response = response_error_code_returned(&return_code);
-                Ok(ProvisioningResponse::Success { response })
-            }
-        }
-        Err(error) => {
-            Err(error)
-        }
-    }
+    protocol_state.launch(&file_name,client_id)
 }
 
 /// Processes a request from a client to perform a platform shutdown.  Returns
@@ -179,16 +159,13 @@ fn dispatch_on_shutdown(
 /// program, as the program provider can try again by uploading another program,
 /// which seems benign.  Should this change?
 fn dispatch_on_program(
-    protocol_state: &ProtocolState,
+    protocol_state: &mut ProtocolState,
     colima::Program { file_name, code, .. }: colima::Program,
     client_id: u64,
 ) -> ProvisioningResult {
-    if let Err(reason) = protocol_state.write_file(&VeracruzCapabilityIndex::Principal(client_id),&file_name,&code) {
-        Err(reason)
-    } else {
-        let response = colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, None)?;
-        Ok(ProvisioningResponse::Success { response })
-    }
+    protocol_state.write_file(&VeracruzCapabilityIndex::Principal(client_id),&file_name,&code)?; 
+    let response = colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, None)?;
+    Ok(ProvisioningResponse::Success { response })
 }
 
 /// Provisions a data source into the host provisioning state.  Fails if we are
@@ -199,19 +176,15 @@ fn dispatch_on_program(
 /// `LifecycleState::ReadyToExecute` or `LifecycleState::StreamSourcesLoading`
 /// if stream data is required.
 fn dispatch_on_data(
-    protocol_state: &ProtocolState,
+    protocol_state: &mut ProtocolState,
     colima::Data {
         data, file_name, ..
     }: colima::Data,
     client_id: u64,
 ) -> ProvisioningResult {
-    //TODO: REPLACE BY FS API
-    if let Err(error) = protocol_state.write_file(&VeracruzCapabilityIndex::Principal(client_id),file_name.as_str(),data.as_slice()) {
-        Err(error)
-    } else {
-        let response = colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, None)?;
-        Ok(ProvisioningResponse::Success { response })
-    }
+    protocol_state.write_file(&VeracruzCapabilityIndex::Principal(client_id),file_name.as_str(),data.as_slice())?; 
+    let response = colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, None)?;
+    Ok(ProvisioningResponse::Success { response })
 }
 
 /// Provisions a stream source into the host provisioning state.  Fails if we are
@@ -221,18 +194,15 @@ fn dispatch_on_data(
 /// provisioning state automatically switches to
 /// `LifecycleState::ReadyToExecute`.
 fn dispatch_on_stream(
-    protocol_state: &ProtocolState,
+    protocol_state: &mut ProtocolState,
     colima::Data {
         data, file_name, ..
     }: colima::Data,
     client_id: u64,
 ) -> ProvisioningResult {
-    if let Err(error) = protocol_state.write_file(&VeracruzCapabilityIndex::Principal(client_id),file_name.as_str(),data.as_slice()) {
-        Err(error)
-    } else {
-        let response = colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, None)?;
-        Ok(ProvisioningResponse::Success { response })
-    }
+    protocol_state.write_file(&VeracruzCapabilityIndex::Principal(client_id),file_name.as_str(),data.as_slice())?;
+    let response = colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, None)?;
+    Ok(ProvisioningResponse::Success { response })
 }
 
 /// Signals the next round of computation. It will reload the program and all (static) data,
@@ -241,13 +211,10 @@ fn dispatch_on_stream(
 fn dispatch_on_next_round(
     protocol_state: &mut ProtocolState,
 ) -> ProvisioningResult {
-    match protocol_state.reload() {
-        Ok(o) => 
-            Ok(ProvisioningResponse::Success {
-                response: response_success(None),
-            }),
-        Err(e) => Err(e),
-    }
+    protocol_state.reload()?;
+    Ok(ProvisioningResponse::Success {
+        response: response_success(None),
+    })
 }
 
 /// Branches on a decoded protobuf message, `request`, and invokes appropriate

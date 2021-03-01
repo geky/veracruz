@@ -35,7 +35,7 @@ use execution_engine::{
     hcall::buffer::VFS,
 };
 
-use veracruz_utils::{VeracruzCapabilityIndex, VeracruzPolicy};
+use veracruz_utils::{VeracruzCapabilityIndex, VeracruzPolicy, VeracruzCapability};
 
 pub mod session_manager;
 pub mod buffer;
@@ -51,6 +51,7 @@ lazy_static! {
     static ref MY_SESSION_MANAGER: Mutex<Option<::session_manager::SessionContext>> = Mutex::new(None);
     static ref SESSION_COUNTER: Mutex<u32> = Mutex::new(0);
     static ref SESSIONS: Mutex<HashMap<u32, ::session_manager::Session>> = Mutex::new(HashMap::new());
+    //TODO REMOVE?
     static ref PROTOCOL_STATE: Mutex<Option<ProtocolState>> = Mutex::new(None);
     static ref DEBUG_FLAG: AtomicBool = AtomicBool::new(false);
 }
@@ -90,12 +91,7 @@ pub type ProvisioningResult = Result<ProvisioningResponse, MexicoCityError>;
 /// The configuration details for the ongoing provisioning of secrets into the
 /// Veracruz platform, containing information that must be persisted across the
 /// different rounds of the provisioning process and the fixed global policy.
-struct ProtocolState {
-    #[deprecated]
-    /// The Veracruz host provisioning state, which captures "transient" state
-    /// of the provisioning process and updates its internal lifecycle state
-    /// appropriately as more and more clients provision their secrets.
-    host_state: Arc<Mutex<dyn ExecutionEngine>>,
+pub(crate) struct ProtocolState {
     /// This flag indicates if new data or program is arrived since last execution.
     /// It decides if it is necessary to run a program when result retriever requests reading
     /// result.
@@ -132,14 +128,7 @@ impl ProtocolState {
         let program_digests = global_policy.get_program_digests()?;
         let vfs = Arc::new(Mutex::new(VFS::new(&capability_table,&program_digests)));
 
-        let host_state = multi_threaded_execution_engine(
-            &execution_strategy,
-            vfs.clone()
-        )
-        .ok_or(MexicoCityError::InvalidExecutionStrategyError)?;
-
         Ok(ProtocolState {
-            host_state,
             global_policy,
             global_policy_hash,
             expected_shutdown_sources,
@@ -150,17 +139,6 @@ impl ProtocolState {
 
     #[deprecated]
     pub fn reload(&mut self) -> Result<(), MexicoCityError> {
-        let execution_strategy = match self.global_policy.execution_strategy() {
-            veracruz_utils::ExecutionStrategy::Interpretation => {
-                chihuahua::factory::ExecutionStrategy::Interpretation
-            }
-            veracruz_utils::ExecutionStrategy::JIT => chihuahua::factory::ExecutionStrategy::JIT,
-        };
-        self.host_state = multi_threaded_chihuahua(
-            &execution_strategy,
-            self.vfs.clone()
-        )
-        .ok_or(MexicoCityError::InvalidExecutionStrategyError)?;
         self.is_modified = true;
         Ok(())
     }
@@ -188,40 +166,23 @@ impl ProtocolState {
      */
 
     //TODO: add description
-    pub(crate) fn write_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
-        Ok(self.host_state.lock()?.write_file(client_id,file_name,data)?)
+    pub(crate) fn write_file(&mut self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
+        self.is_modified = true;
+        self.vfs.lock()?.check_capability(client_id,file_name, &VeracruzCapability::Write)?;
+        Ok(self.vfs.lock()?.write(file_name,data)?)
     }
 
     //TODO: add description
-    pub(crate) fn append_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
-        Ok(self.host_state.lock()?.append_file(client_id,file_name,data)?)
+    pub(crate) fn append_file(&mut self, client_id: &VeracruzCapabilityIndex, file_name: &str, data: &[u8]) -> Result<(), MexicoCityError> {
+        self.is_modified = true;
+        self.vfs.lock()?.check_capability(client_id,file_name, &VeracruzCapability::Write)?;
+        Ok(self.vfs.lock()?.append(file_name,data)?)
     }
 
     //TODO: add description
     pub(crate) fn read_file(&self, client_id: &VeracruzCapabilityIndex, file_name: &str) -> Result<Option<Vec<u8>>, MexicoCityError> {
-        Ok(self.host_state.lock()?.read_file(client_id,file_name)?)
-    }
-
-    /// Invokes the entry point of the provisioned WASM program.  Will fail if
-    /// the current lifecycle state is not `LifecycleState::ReadyToExecute` or
-    /// if the WASM program fails at runtime.  On success, bumps the lifecycle
-    /// state to `LifecycleState::FinishedExecuting` and returns the error code
-    /// returned by the WASM program entry point as an `i32` value.
-    pub(crate) fn invoke_entry_point(&self,file_name:&str) -> Result<i32, MexicoCityError> {
-        Ok(self.host_state.lock()?.invoke_entry_point(file_name)?)
-    }
-
-    /// Returns the current lifecycle state that the host provisioning state is
-    /// in.
-    pub(crate) fn get_lifecycle_state(&self) -> Result<LifecycleState, MexicoCityError> {
-        Ok(self.host_state.lock()?.get_lifecycle_state().clone())
-    }
-
-    /// Moves the host provisioning state's lifecycle state into
-    /// `LifecycleState::Error`, a state which it cannot ever escape,
-    /// effectively invalidating it.
-    pub(crate) fn invalidate(&self) -> Result<(), MexicoCityError> {
-        Ok(self.host_state.lock()?.invalidate())
+        self.vfs.lock()?.check_capability(client_id,file_name, &VeracruzCapability::Read)?;
+        Ok(self.vfs.lock()?.read(file_name)?)
     }
 
     /// Requests shutdown on behalf of a client, as identified by their client
@@ -233,6 +194,49 @@ impl ProtocolState {
     ) -> Result<bool, MexicoCityError> {
         self.expected_shutdown_sources.retain(|v| v != &client_id);
         Ok(self.expected_shutdown_sources.is_empty())
+    }
+    
+    pub(crate) fn launch(&mut self, file_name: &str, client_id: u64) -> ProvisioningResult {
+        let execution_strategy = match self.global_policy.execution_strategy() {
+            veracruz_utils::ExecutionStrategy::Interpretation => {
+                chihuahua::factory::ExecutionStrategy::Interpretation
+            }
+            veracruz_utils::ExecutionStrategy::JIT => chihuahua::factory::ExecutionStrategy::JIT,
+        };
+        let return_code = multi_threaded_chihuahua(
+            &execution_strategy,
+            self.vfs.clone()
+        )
+        // TODO: change the error
+        .ok_or(MexicoCityError::InvalidExecutionStrategyError)?
+        .invoke_entry_point(&file_name)?;
+        
+        let response = if return_code == 0 {
+            let result = self.read_file(&VeracruzCapabilityIndex::Principal(client_id),"output")?;
+            Self::response_success(result)
+        } else {
+            Self::response_error_code_returned(&return_code)
+        };
+
+        self.is_modified = false;
+        Ok(ProvisioningResponse::Success { response })
+    }
+
+    fn response_success(result: Option<Vec<u8>>) -> Vec<u8> {
+        colima::serialize_result(colima::ResponseStatus::SUCCESS as i32, result)
+            .unwrap_or_else(|err| panic!(err))
+    }
+
+    fn response_error_code_returned(error_code: &i32) -> std::vec::Vec<u8> {
+        colima::serialize_result(
+            colima::ResponseStatus::FAILED_ERROR_CODE_RETURNED as i32,
+            Some(error_code.to_le_bytes().to_vec()),
+        )
+        .unwrap_or_else(|err| panic!(err))
+    }
+
+    fn is_modified(&self) -> bool {
+        self.is_modified
     }
 }
 

@@ -31,8 +31,8 @@ pub enum MexicoCityError {
     FatalHostError(#[error(source)] execution_engine::hcall::common::FatalHostError),
     #[error(display = "MexicoCity: HostProvisioningError: {:?}.", _0)]
     HostProvisioningError(#[error(source)] execution_engine::hcall::common::HostProvisioningError),
-    //#[error(display = "MexicoCity: MexicoCityBufferError: {:?}.", _0)]
-    //MexicoCityBufferError(#[error(source)] crate::managers::buffer::MexicoCityBufferError),
+    #[error(display = "FatalVeracruzHostError: VFS Error: {:?}.", _0)]
+    VFSError(#[error(source)] chihuahua::hcall::buffer::VFSError),
     #[error(display = "MexicoCity: Failed to obtain lock {:?}.", _0)]
     LockError(std::string::String),
     #[error(display = "MexicoCity: Uninitialized session in function {}.", _0)]

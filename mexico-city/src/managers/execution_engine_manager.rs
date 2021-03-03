@@ -102,8 +102,8 @@ fn dispatch_on_policy_hash(protocol_state: &ProtocolState) -> ProvisioningResult
 /// state can be queried unconditionally (though it may change between the query
 /// being serviced and being received back/being acted upon...)
 #[deprecated]
+//TODO REMOVE???
 fn dispatch_on_request_state(_ : &ProtocolState) -> ProvisioningResult {
-    //TODO REMOVE???
     let response =
         colima::serialize_machine_state(u8::from(0))?;
     Ok(ProvisioningResponse::Success { response })
@@ -179,6 +179,8 @@ fn dispatch_on_stream(
 /// Signals the next round of computation.
 /// The next result request is guaranteed to execute the
 /// program before reading the result from the VFS.
+//TODO REMOVE???
+#[deprecated]
 fn dispatch_on_next_round(
     protocol_state: &mut ProtocolState,
 ) -> ProvisioningResult {

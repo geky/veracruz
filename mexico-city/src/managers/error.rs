@@ -28,7 +28,7 @@ pub enum MexicoCityError {
     #[error(display = "MexicoCity: VeracruzUtilError: {:?}.", _0)]
     VeracruzUtilError(#[error(source)] veracruz_utils::policy::VeracruzUtilError),
     #[error(display = "MexicoCity: FatalHostError: {:?}.", _0)]
-    FatalHostError(#[error(source)] execution_engine::hcall::common::FatalHostError),
+    FatalHostError(#[error(source)] execution_engine::hcall::common::FatalEngineError),
     #[error(display = "MexicoCity: HostProvisioningError: {:?}.", _0)]
     HostProvisioningError(#[error(source)] execution_engine::hcall::common::HostProvisioningError),
     #[error(display = "FatalVeracruzHostError: VFS Error: {:?}.", _0)]

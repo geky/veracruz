@@ -117,6 +117,7 @@ pub enum VeracruzCapabilityIndex {
     Principal(u64),
     // Program
     Program(String),
+    NoCap,
 }
 
 pub type VeracruzCapabilityTable = HashMap<VeracruzCapabilityIndex,HashMap<String, HashSet<VeracruzCapability>>>;

@@ -404,7 +404,7 @@ async fn policy_client_loop() -> Result<(), DurangoError> {
     )?;
 
     let fake_data = vec![0xde, 0xad, 0xbe, 0xef];
-    let sp_ret = data_client.send_program(&fake_data.to_vec());
+    let sp_ret = data_client.send_program("fake_program",&fake_data.to_vec());
     match sp_ret {
         Err(DurangoError::InvalidRoleError(_, _))
         | Err(DurangoError::InvalidClientCertificateError(_)) => (),
@@ -418,14 +418,14 @@ async fn policy_client_loop() -> Result<(), DurangoError> {
         &EnclavePlatform::Mock,
     )?;
 
-    let sd_ret = program_client.send_data(&fake_data.to_vec());
+    let sd_ret = program_client.send_data("fake_data",&fake_data.to_vec());
     match sd_ret {
         Err(DurangoError::InvalidRoleError(_, _))
         | Err(DurangoError::InvalidClientCertificateError(_)) => (),
         _otherwise => panic!(),
     }
 
-    let gr_ret = program_client.get_results();
+    let gr_ret = program_client.get_results("fake_result");
     match gr_ret {
         Err(DurangoError::InvalidRoleError(_, _))
         | Err(DurangoError::InvalidClientCertificateError(_)) => (),

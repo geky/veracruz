@@ -247,12 +247,12 @@ impl Durango {
         }
     }
 
-    pub fn send_program(&mut self, program: &Vec<u8>) -> Result<(), DurangoError> {
+    pub fn send_program(&mut self, file_name:&str, program: &Vec<u8>) -> Result<(), DurangoError> {
         self.check_role_permission(&VeracruzRole::ProgramProvider)?;
 
         self.check_policy_hash()?;
 
-        let serialized_program = colima::serialize_program(&program)?;
+        let serialized_program = colima::serialize_program(&program, file_name)?;
         let response = self.send(&serialized_program)?;
         let parsed_response = colima::parse_mexico_city_response(&response)?;
         let status = parsed_response.get_status();
@@ -264,11 +264,11 @@ impl Durango {
         }
     }
 
-    pub fn send_data(&mut self, data: &Vec<u8>) -> Result<(), DurangoError> {
+    pub fn send_data(&mut self,file_name:&str, data: &Vec<u8>) -> Result<(), DurangoError> {
         self.check_role_permission(&VeracruzRole::DataProvider)?;
         self.check_policy_hash()?;
-        self.check_pi_hash()?;
-        let serialized_data = colima::serialize_program_data(&data, self.next_package_id())?;
+        //self.check_pi_hash(file_name)?;
+        let serialized_data = colima::serialize_program_data(&data, file_name)?;
         let response = self.send(&serialized_data)?;
 
         let parsed_response = colima::parse_mexico_city_response(&response)?;
@@ -281,12 +281,12 @@ impl Durango {
         }
     }
 
-    pub fn get_results(&mut self) -> Result<Vec<u8>, DurangoError> {
+    pub fn get_results(&mut self, file_name:&str) -> Result<Vec<u8>, DurangoError> {
         self.check_role_permission(&VeracruzRole::ResultReader)?;
         self.check_policy_hash()?;
-        self.check_pi_hash()?;
+        self.check_pi_hash(file_name)?;
 
-        let serialized_read_result = colima::serialize_request_result()?;
+        let serialized_read_result = colima::serialize_request_result(file_name)?;
         let response = self.send(&serialized_read_result)?;
 
         let parsed_response = colima::parse_mexico_city_response(&response)?;
@@ -307,12 +307,6 @@ impl Durango {
         Ok(())
     }
 
-    fn next_package_id(&mut self) -> u32 {
-        let rst = self.package_id;
-        self.package_id += 1;
-        rst
-    }
-
     fn check_policy_hash(&mut self) -> Result<(), DurangoError> {
         let serialized_rph = colima::serialize_request_policy_hash()?;
         let response = self.send(&serialized_rph)?;
@@ -323,7 +317,7 @@ impl Durango {
                 if self.policy_hash != received_hash {
                     return Err(DurangoError::MismatchError {
                         variable: "check_pi_hash",
-                        expected: self.policy.pi_hash().clone().into_bytes(),
+                        expected: b"check policy file".to_vec(),
                         received: received_hash.as_bytes().to_vec(),
                     });
                 } else {
@@ -339,8 +333,9 @@ impl Durango {
         }
     }
 
-    fn check_pi_hash(&mut self) -> Result<(), DurangoError> {
-        let serialized_request = colima::serialize_request_pi_hash()?;
+    #[deprecated]
+    fn check_pi_hash(&mut self, file_name:&str) -> Result<(), DurangoError> {
+        let serialized_request = colima::serialize_request_pi_hash(file_name)?;
         let mut iterations = 0;
         let max_iterations = 10;
         while iterations < max_iterations {
@@ -349,16 +344,17 @@ impl Durango {
             let status = parsed_response.get_status();
             match status {
                 colima::ResponseStatus::SUCCESS => {
-                    let received_hash = hex::encode(&parsed_response.get_pi_hash().data);
-                    if received_hash == *self.policy.pi_hash() {
-                        return Ok(());
-                    } else {
-                        return Err(DurangoError::MismatchError {
-                            variable: "check_pi_hash",
-                            expected: self.policy.pi_hash().clone().into_bytes(),
-                            received: received_hash.into_bytes(),
-                        });
-                    }
+                    return Ok(());
+                    //let received_hash = hex::encode(&parsed_response.get_pi_hash().data);
+                    //if received_hash == *self.policy.pi_hash() {
+                        //return Ok(());
+                    //} else {
+                        //return Err(DurangoError::MismatchError {
+                            //variable: "check_pi_hash",
+                            //expected: b"deprecated",
+                            //received: received_hash.into_bytes(),
+                        //});
+                    //}
                 }
                 colima::ResponseStatus::FAILED_NOT_READY => {
                     std::thread::sleep(std::time::Duration::from_millis(5000));

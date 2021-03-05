@@ -24,7 +24,7 @@ use std::sync::Mutex;
 #[cfg(feature = "sgx")]
 use std::sync::SgxMutex as Mutex;
 use std::{collections::HashMap, result::Result, vec::Vec};
-use veracruz_utils::{VeracruzCapabilityIndex, VeracruzRole};
+use veracruz_utils::VeracruzCapabilityIndex;
 
 ////////////////////////////////////////////////////////////////////////////////
 // The buffer of incoming data.
@@ -199,7 +199,6 @@ fn dispatch_on_next_round(
 /// may want the ability.
 fn dispatch_on_request(
     client_id: u64,
-    roles: &Vec<VeracruzRole>,
     request: MESSAGE,
 ) -> ProvisioningResult {
     let mut protocol_state_guard = super::PROTOCOL_STATE.lock()?;
@@ -279,7 +278,6 @@ fn parse_incoming_buffer(
 pub fn dispatch_on_incoming_data(
     tls_session_id: u32,
     client_id: u64,
-    roles: &Vec<VeracruzRole>,
     input: &Vec<u8>,
 ) -> ProvisioningResult {
     match parse_incoming_buffer(tls_session_id, input.clone())? {
@@ -291,6 +289,6 @@ pub fn dispatch_on_incoming_data(
         Some(REQUEST {
             message_oneof: Some(request),
             ..
-        }) => dispatch_on_request(client_id, roles, request),
+        }) => dispatch_on_request(client_id, request),
     }
 }

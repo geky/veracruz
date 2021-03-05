@@ -139,8 +139,6 @@ mod tests {
         }
         SETUP.call_once(|| {
             info!("SETUP.call_once called");
-            std::env::set_var("RUST_LOG", "info,actix_server=debug,actix_web=debug");
-            env_logger::init();
             let _main_loop_handle = std::thread::spawn(|| {
                 let mut sys = System::new("Veracruz Proxy Attestation Server");
                 #[cfg(feature="debug")]

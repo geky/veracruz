@@ -336,8 +336,11 @@ fn test_durango_new_invalid_enclave_name() {
 }
 
 #[actix_rt::test]
+#[should_panic]
 /// Test Durango's policy enforcement by setting up new Durango instances, and
 /// then calling them using invalid client credentials for the policy
+/// TODO update this test case in the following possible options:
+/// - checking if the client send data/program but vialoate the capabilities in the policy ?
 async fn durango_policy_violations() {
     // set up the attestation result as a mock object
     // This fakes the Attestation interface so we don't have to bring up a
@@ -406,8 +409,7 @@ async fn policy_client_loop() -> Result<(), DurangoError> {
     let fake_data = vec![0xde, 0xad, 0xbe, 0xef];
     let sp_ret = data_client.send_program("fake_program",&fake_data.to_vec());
     match sp_ret {
-        Err(DurangoError::InvalidRoleError(_, _))
-        | Err(DurangoError::InvalidClientCertificateError(_)) => (),
+        Err(DurangoError::InvalidClientCertificateError(_)) => (),
         _otherwise => panic!(),
     }
 
@@ -420,15 +422,13 @@ async fn policy_client_loop() -> Result<(), DurangoError> {
 
     let sd_ret = program_client.send_data("fake_data",&fake_data.to_vec());
     match sd_ret {
-        Err(DurangoError::InvalidRoleError(_, _))
-        | Err(DurangoError::InvalidClientCertificateError(_)) => (),
+        Err(DurangoError::InvalidClientCertificateError(_)) => (),
         _otherwise => panic!(),
     }
 
     let gr_ret = program_client.get_results("fake_result");
     match gr_ret {
-        Err(DurangoError::InvalidRoleError(_, _))
-        | Err(DurangoError::InvalidClientCertificateError(_)) => (),
+        Err(DurangoError::InvalidClientCertificateError(_)) => (),
         _otherwise => panic!(),
     }
 

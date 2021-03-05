@@ -83,12 +83,6 @@ pub enum DurangoError {
     SinaloaResponseNoResultError,
     #[error(display = "Durango: Too many interation: {:?}", _0)]
     ExcessiveIterationError(&'static str),
-    #[error(
-        display = "Durango: client with certificate {:?} has no role of {:?}.",
-        _0,
-        _1
-    )]
-    InvalidRoleError(Vec<u8>, veracruz_utils::VeracruzRole),
     #[error(display = "Durango: Unauthorized client certificate: {}.", _0)]
     InvalidClientCertificateError(String),
     #[error(display = "Durango: Direct message: {}.", _0)]

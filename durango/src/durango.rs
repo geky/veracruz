@@ -16,7 +16,7 @@ use std::{
     io::{Read, Write},
     str::from_utf8,
 };
-use veracruz_utils::{EnclavePlatform, VeracruzPolicy, VeracruzRole};
+use veracruz_utils::{EnclavePlatform, VeracruzPolicy};
 use webpki;
 use webpki_roots;
 
@@ -227,29 +227,7 @@ impl Durango {
         })
     }
 
-    fn check_role_permission(&self, role: &VeracruzRole) -> Result<(), DurangoError> {
-        match self
-            .policy
-            .identities()
-            .iter()
-            .find(|&x| *x.certificate() == self.client_cert)
-        {
-            Some(identity) => match identity.roles().iter().find(|&x| *x == *role) {
-                Some(_) => Ok(()),
-                None => Err(DurangoError::InvalidRoleError(
-                    self.client_cert.clone().into_bytes(),
-                    role.clone(),
-                )),
-            },
-            None => Err(DurangoError::InvalidClientCertificateError(
-                self.client_cert.to_string(),
-            )),
-        }
-    }
-
     pub fn send_program(&mut self, file_name:&str, program: &Vec<u8>) -> Result<(), DurangoError> {
-        self.check_role_permission(&VeracruzRole::ProgramProvider)?;
-
         self.check_policy_hash()?;
 
         let serialized_program = colima::serialize_program(&program, file_name)?;
@@ -265,9 +243,7 @@ impl Durango {
     }
 
     pub fn send_data(&mut self,file_name:&str, data: &Vec<u8>) -> Result<(), DurangoError> {
-        self.check_role_permission(&VeracruzRole::DataProvider)?;
         self.check_policy_hash()?;
-        //self.check_pi_hash(file_name)?;
         let serialized_data = colima::serialize_program_data(&data, file_name)?;
         let response = self.send(&serialized_data)?;
 
@@ -282,9 +258,7 @@ impl Durango {
     }
 
     pub fn get_results(&mut self, file_name:&str) -> Result<Vec<u8>, DurangoError> {
-        self.check_role_permission(&VeracruzRole::ResultReader)?;
         self.check_policy_hash()?;
-        self.check_pi_hash(file_name)?;
 
         let serialized_read_result = colima::serialize_request_result(file_name)?;
         let response = self.send(&serialized_read_result)?;
@@ -344,17 +318,8 @@ impl Durango {
             let status = parsed_response.get_status();
             match status {
                 colima::ResponseStatus::SUCCESS => {
+                    //Since it is a deprecated function, we assume it always succeeds
                     return Ok(());
-                    //let received_hash = hex::encode(&parsed_response.get_pi_hash().data);
-                    //if received_hash == *self.policy.pi_hash() {
-                        //return Ok(());
-                    //} else {
-                        //return Err(DurangoError::MismatchError {
-                            //variable: "check_pi_hash",
-                            //expected: b"deprecated",
-                            //received: received_hash.into_bytes(),
-                        //});
-                    //}
                 }
                 colima::ResponseStatus::FAILED_NOT_READY => {
                     std::thread::sleep(std::time::Duration::from_millis(5000));

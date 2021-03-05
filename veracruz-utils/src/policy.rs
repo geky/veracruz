@@ -244,22 +244,6 @@ pub enum ExecutionStrategy {
 // Roles and identities of principals.
 ////////////////////////////////////////////////////////////////////////////////
 
-/// Defines the role (or mix of roles) that a principal can take on in any
-/// Veracruz computation.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum VeracruzRole {
-    /// The principal is responsible for supplying the program to execute.
-    ProgramProvider,
-    /// The principal is responsible for providing an input data set to the
-    /// computation.
-    DataProvider,
-    /// The principal is capable of retrieving the result of the computation.
-    ResultReader,
-    /// The principal is responsible for providing an input stream package set to the
-    /// computation.
-    StreamProvider,
-}
-
 /// A notion of identitity for Veracruz principals.  Note that in different
 /// contexts we require different representations from our cryptographic
 /// certificates: in some contexts these should be unparsed text representations
@@ -278,8 +262,6 @@ pub struct VeracruzIdentity<U> {
     id: u32,
     /// The mixture of roles that the principal behind this identity has taken
     /// on for the Veracruz computation.
-    roles: Vec<VeracruzRole>,
-    /// The file permission that specifies this principal's ability to read, write and execute files.
     file_permissions : Vec<VeracruzFileCapability>,
 }
 
@@ -287,38 +269,12 @@ impl<U> VeracruzIdentity<U> {
     /// Creates a new identity from a certificate, and identifier.  Initially,
     /// we keep the set of roles empty.
     #[inline]
-    pub fn new(certificate: U, id: u32, roles: Vec<VeracruzRole>, file_permissions : Vec<VeracruzFileCapability>) -> Self {
+    pub fn new(certificate: U, id: u32, file_permissions : Vec<VeracruzFileCapability>) -> Self {
         Self {
             certificate,
             id,
-            roles,
             file_permissions,
         }
-    }
-
-    /// Adds a new role to the principal's set of assigned roles.
-    #[inline]
-    pub fn add_role(&mut self, role: VeracruzRole) -> &mut Self {
-        self.roles.push(role);
-        self
-    }
-
-    /// Adds multiple new roles to the principal's set of assigned roles,
-    /// reading them from an iterator.
-    pub fn add_roles<T>(&mut self, roles: T) -> &mut Self
-    where
-        T: IntoIterator<Item = VeracruzRole>,
-    {
-        for role in roles {
-            self.add_role(role);
-        }
-        self
-    }
-
-    /// Returns `true` iff the principal has the role, `role`.
-    #[inline]
-    pub fn has_role(&self, role: &VeracruzRole) -> bool {
-        self.roles.iter().any(|r| r == role)
     }
 
     /// Returns `true` iff the principal has the role, `role`.
@@ -337,12 +293,6 @@ impl<U> VeracruzIdentity<U> {
     #[inline]
     pub fn id(&self) -> &u32 {
         &self.id
-    }
-
-    /// Returns the mixture of roles associated with this identity.
-    #[inline]
-    pub fn roles(&self) -> &Vec<VeracruzRole> {
-        &self.roles
     }
 }
 
@@ -496,14 +446,6 @@ pub struct VeracruzPolicy {
     mexico_city_hash_tz: Option<String>,
     /// The hash of the Veracruz trusted runtime for AWS Nitro Enclaves.
     mexico_city_hash_nitro: Option<String>,
-    //TODO: remove
-    /// The declared ordering of data inputs, provided by the various data
-    /// providers, as specified in the policy.  Note that data providers can
-    /// provision their inputs asynchronously, and in an arbitrary order.  Once
-    /// all are provisioned, however, we reorder these inputs into this fixed
-    /// declared order so that the Veracruz host ABI, which allows access to
-    /// inputs via an index, remains well-defined.
-    data_provision_order: Vec<u64>,
     /// The URL of the proxy attestation service.
     proxy_attestation_server_url: String,
     /// The debug configuration flag.  This dictates whether the WASM program
@@ -512,14 +454,6 @@ pub struct VeracruzPolicy {
     debug: bool,
     /// The execution strategy that will be used to execute the WASM binary.
     execution_strategy: ExecutionStrategy,
-    //TODO: remove
-    /// The declared ordering of stream package data inputs, provided by the various data
-    /// providers, as specified in the policy.  Note that data providers can
-    /// provision their inputs asynchronously, and in an arbitrary order.  Once
-    /// all are provisioned, however, we reorder these inputs into this fixed
-    /// declared order so that the Veracruz host ABI, which allows access to
-    /// inputs via an index, remains well-defined.
-    streaming_order: Vec<u64>,
 }
 
 /// an enumerated type representing the platform the enclave is running on
@@ -544,8 +478,6 @@ impl VeracruzPolicy {
         mexico_city_hash_sgx: Option<String>,
         mexico_city_hash_tz: Option<String>,
         mexico_city_hash_nitro: Option<String>,
-        data_provision_order: Vec<u64>,
-        streaming_order: Vec<u64>,
         proxy_attestation_server_url: String,
         debug: bool,
         execution_strategy: ExecutionStrategy,
@@ -559,11 +491,9 @@ impl VeracruzPolicy {
             mexico_city_hash_sgx,
             mexico_city_hash_tz,
             mexico_city_hash_nitro,
-            data_provision_order,
             proxy_attestation_server_url,
             debug,
             execution_strategy,
-            streaming_order,
         };
 
         policy.assert_valid()?;
@@ -637,18 +567,6 @@ impl VeracruzPolicy {
         return Ok(&hash);
     }
 
-    /// Returns the fixed data provisioning order, associated with this policy.
-    #[inline]
-    pub fn data_provision_order(&self) -> &Vec<u64> {
-        &self.data_provision_order
-    }
-
-    /// Returns the fixed stream provisioning order, associated with this policy.
-    #[inline]
-    pub fn stream_provision_order(&self) -> &Vec<u64> {
-        &self.streaming_order
-    }
-
     /// Returns the URL of the proxy attestation service, associated with this
     /// policy.
     #[inline]
@@ -680,8 +598,6 @@ impl VeracruzPolicy {
     /// is found to be invalid.  In all other cases, `Ok(())` is returned.
     fn assert_valid(&self) -> Result<(), VeracruzUtilError> {
         let mut client_ids = Vec::new();
-        let mut has_pi_provider = false;
-        let mut has_result_reader = false;
 
         for identity in self.identities.iter() {
             identity.assert_valid()?;
@@ -693,42 +609,6 @@ impl VeracruzPolicy {
                 ));
             }
             client_ids.push(*identity.id());
-
-            // check there is at least one role per client, and there is at least one PiProvider
-            // and ResultReader
-            if identity.roles().is_empty() {
-                return Err(VeracruzUtilError::EmptyRoleError(*identity.id() as u64));
-            }
-
-            has_result_reader =
-                has_result_reader || identity.roles.contains(&VeracruzRole::ResultReader);
-
-            let new_pi_flag = identity.roles.contains(&VeracruzRole::ProgramProvider);
-
-            if has_pi_provider && new_pi_flag {
-                return Err(VeracruzUtilError::NoProgramProviderError);
-            } else {
-                has_pi_provider = has_pi_provider || new_pi_flag;
-            }
-        }
-
-        // check if the data_provision_order contains the valid IDs.
-        if !self
-            .data_provision_order()
-            .iter()
-            .fold(true, |last_rst, i| {
-                last_rst && client_ids.contains(&(*i as u32))
-            })
-        {
-            return Err(VeracruzUtilError::DataProviderError);
-        }
-
-        if !has_result_reader {
-            return Err(VeracruzUtilError::NoResultRetrieverError);
-        }
-
-        if !has_pi_provider {
-            return Err(VeracruzUtilError::NoProgramProviderError);
         }
 
         // Check the ciphersuite
@@ -764,18 +644,9 @@ impl VeracruzPolicy {
         self.identities()
             .iter()
             .fold(Vec::new(), |mut acc, identity| {
-                if identity.roles.contains(&VeracruzRole::ResultReader) {
-                    acc.push(*identity.id() as u64);
-                }
+                acc.push(*identity.id() as u64);
                 acc
             })
-    }
-
-    /// Returns the count of data providers expected, as specified in this
-    /// policy.
-    #[inline]
-    pub fn expected_data_source_count(&self) -> usize {
-        self.data_provision_order().len()
     }
 
     /// Returns `Ok(identity)` if a principal with a certificate matching the

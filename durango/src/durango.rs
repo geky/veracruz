@@ -206,6 +206,7 @@ impl Durango {
             client_key_filename,
             policy,
             policy_hash,
+            target_platform,
         )
     }
 
@@ -218,6 +219,7 @@ impl Durango {
         client_key_filename: P2,
         policy: VeracruzPolicy,
         policy_hash: String,
+        target_platform: &EnclavePlatform
     ) -> Result<Durango, DurangoError>
     where
         P1: AsRef<path::Path>,

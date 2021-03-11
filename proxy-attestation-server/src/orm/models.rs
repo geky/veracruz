@@ -20,7 +20,7 @@ pub struct NewDevice {
     pub enclave_name: String,
 }
 
-#[derive(Queryable, Associations, Debug, Identifiable, AsChangeset)]
+#[derive(Queryable, Associations, Debug, Identifiable, AsChangeset, Insertable)]
 #[table_name = "firmware_versions"]
 pub struct FirmwareVersion {
     pub id: i32,

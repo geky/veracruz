@@ -29,16 +29,16 @@ pub mod trustzone_root_enclave_opcode;
 #[cfg(feature = "tz")]
 pub use crate::trustzone_root_enclave_opcode::*;
 
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro", feature = "linux"))]
 pub mod nitro;
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro", feature = "linux"))]
 pub use crate::nitro::*;
 
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro", feature = "linux"))]
 pub mod vsocket;
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro", feature = "linux"))]
 pub use self::vsocket::*;
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro"))]
 pub mod nitro_enclave;
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro"))]
 pub use self::nitro_enclave::*;

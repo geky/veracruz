@@ -12,7 +12,7 @@
 OUT_DIR?=.
 FINAL_DIR?=.
 
-.PHONY: all sgx trustzone clean deprecated nitro
+.PHONY: all sgx trustzone clean deprecated nitro linux
 
 all: deprecated sgx
 
@@ -111,6 +111,17 @@ ifeq ($(XARGO_SGX), 1)
 else
 	@cargo build --lib --features sgx --release --out-dir $(OUT_DIR) -Z unstable-options
 endif
+
+############# Linux #################
+Linux_Src = $(COMMON_Src) src/runtime_manager_linux.rs src/main.rs
+
+linux: target/release/runtime_manager_enclave
+
+target/release/runtime_manager_enclave: $(Linux_Src)
+	cargo build --release --features linux
+#	@echo $(INFO_COLOR)"CARGO <=  $(Linux_Src)" $(RESET_COLOR)
+#	@cargo build --features linux --release --verbose
+#	@echo $(INFO_COLOR)"GEN   =>  runtime_manager_enclave" $(RESET_COLOR)
 
 ############# TrustZone #################
 TZ_Src =  $(COMMON_Src) src/runtime_manager_trustzone.rs src/main.rs

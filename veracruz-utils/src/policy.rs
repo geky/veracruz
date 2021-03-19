@@ -349,6 +349,8 @@ pub struct VeracruzPolicy {
     runtime_manager_hash_tz: Option<String>,
     /// The hash of the Veracruz trusted runtime for AWS Nitro Enclaves.
     runtime_manager_hash_nitro: Option<String>,
+    /// The hash of the Veracruz trusted runtime for Linux.
+    runtime_manager_hash_linux: Option<String>,
     /// The declared ordering of data inputs, provided by the various data
     /// providers, as specified in the policy.  Note that data providers can
     /// provision their inputs asynchronously, and in an arbitrary order.  Once
@@ -381,6 +383,7 @@ pub enum EnclavePlatform {
     SGX,
     TrustZone,
     Nitro,
+    Linux,
     /// The Mock platform is for unit testing (client unit tests, at the moment)
     Mock, 
 }
@@ -397,6 +400,7 @@ impl VeracruzPolicy {
         runtime_manager_hash_sgx: Option<String>,
         runtime_manager_hash_tz: Option<String>,
         runtime_manager_hash_nitro: Option<String>,
+        runtime_manager_hash_linux: Option<String>,
         data_provision_order: Vec<u64>,
         streaming_order: Vec<u64>,
         proxy_attestation_server_url: String,
@@ -412,6 +416,7 @@ impl VeracruzPolicy {
             runtime_manager_hash_sgx,
             runtime_manager_hash_tz,
             runtime_manager_hash_nitro,
+            runtime_manager_hash_linux,
             data_provision_order,
             proxy_attestation_server_url,
             pi_hash,
@@ -476,6 +481,10 @@ impl VeracruzPolicy {
             EnclavePlatform::Nitro => match &self.runtime_manager_hash_nitro {
                 Some(hash) => hash,
                 None => return Err(VeracruzUtilError::MissingPolicyFieldError("runtime_manager_hash_nitro".to_string())),
+            },
+            EnclavePlatform::Linux => match &self.runtime_manager_hash_linux {
+                Some(hash) => hash,
+                None => return Err(VeracruzUtilError::MissingPolicyFieldError("runtime_manager_hash_linux".to_string())),
             },
             EnclavePlatform::Mock => match &self.runtime_manager_hash_sgx {
                 Some(hash) => hash,

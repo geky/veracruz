@@ -21,9 +21,17 @@ pub mod managers;
 
 #[cfg(feature = "nitro")]
 pub mod runtime_manager_nitro;
+#[cfg(feature = "linux")]
+pub mod runtime_manager_linux;
 
 #[cfg(feature = "nitro")]
 fn main() -> Result<(), String> {
     runtime_manager_nitro::nitro_main()
         .map_err(|err| format!("Runtime Manager::main nitro_main returned error:{:?}", err))
+}
+
+#[cfg(feature = "linux")]
+fn main() -> Result<(), String> {
+    runtime_manager_linux::linux_main()
+        .map_err(|err| format!("Runtime Manager::main linux_main returned error:{:?}", err))
 }

@@ -19,8 +19,7 @@ use transport_protocol::transport_protocol::{
     RuntimeManagerRequest as REQUEST, RuntimeManagerRequest_oneof_message_oneof as MESSAGE,
 };
 use lazy_static::lazy_static;
-#[cfg(any(feature = "tz", feature = "nitro"))]
-
+#[cfg(any(feature = "tz", feature = "nitro", feature = "linux"))]
 use std::sync::Mutex;
 #[cfg(feature = "sgx")]
 use std::sync::SgxMutex as Mutex;

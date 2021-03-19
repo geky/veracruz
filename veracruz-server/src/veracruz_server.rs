@@ -75,16 +75,16 @@ pub enum VeracruzServerError {
     #[cfg(feature = "sgx")]
     #[error(display = "VeracruzServer: SGXError: {:?}.", _0)]
     SGXError(sgx_types::sgx_status_t),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "VeracruzServer: BincodeError: {:?}", _0)]
     BincodeError(bincode::ErrorKind),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "VeracruzServer: RuntimeManagerMessage::Status: {:?}", _0)]
     RuntimeManagerMessageStatus(veracruz_utils::RuntimeManagerMessage),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "VeracruzServer: NitroStatus: {:?}", _0)]
     NitroStatus(veracruz_utils::NitroStatus),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "VeracruzServer: Received Invalid Runtime Manager Message: {:?}", _0)]
     InvalidRuntimeManagerMessage(veracruz_utils::RuntimeManagerMessage),
     #[cfg(feature = "nitro")]
@@ -93,7 +93,7 @@ pub enum VeracruzServerError {
         _0
     )]
     InvalidNitroRootEnclaveMessage(veracruz_utils::NitroRootEnclaveMessage),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "VeracruzServer: Received Invalid Protocol Buffer Message")]
     InvalidProtoBufMessage,
     #[cfg(feature = "nitro")]
@@ -204,7 +204,7 @@ impl error::ResponseError for VeracruzServerError {
     }
 }
 
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro", feature = "linux"))]
 impl From<std::boxed::Box<bincode::ErrorKind>> for VeracruzServerError {
     fn from(error: std::boxed::Box<bincode::ErrorKind>) -> Self {
         VeracruzServerError::BincodeError(*error)

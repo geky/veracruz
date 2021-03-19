@@ -12,11 +12,11 @@
 use err_derive::Error;
 #[cfg(feature = "nitro")]
 use nix;
-#[cfg(any(feature = "tz", feature = "nitro"))]
+#[cfg(any(feature = "tz", feature = "nitro", feature = "linux"))]
 use std::sync::PoisonError;
 #[cfg(feature = "sgx")]
 use std::sync::PoisonError;
-#[cfg(feature = "nitro")]
+#[cfg(any(feature = "nitro", feature = "linux"))]
 use veracruz_utils::nitro::{NitroRootEnclaveMessage, VeracruzSocketError};
 
 #[derive(Debug, Error)]
@@ -54,13 +54,13 @@ pub enum RuntimeManagerError {
     UninitializedProtocolState,
     #[error(display = "RuntimeManager: Unavailable income buffer with ID {}.", _0)]
     UnavailableIncomeBufferError(u64),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "RuntimeManager: Socket Error: {:?}", _0)]
-    SocketError(nix::Error),
-    #[cfg(feature = "nitro")]
+    SocketError(#[error(source)] nix::Error),
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "RuntimeManager: Veracruz Socket error:{:?}", _0)]
     VeracruzSocketError(VeracruzSocketError),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "RuntimeManager: Bincode error:{:?}", _0)]
     BincodeError(bincode::Error),
     #[cfg(feature = "nitro")]
@@ -69,9 +69,12 @@ pub enum RuntimeManagerError {
     #[cfg(feature = "nitro")]
     #[error(display = "RuntimeManager: NSM Error code:{:?}", _0)]
     NsmErrorCode(nsm_io::ErrorCode),
-    #[cfg(feature = "nitro")]
+    #[cfg(any(feature = "nitro", feature = "linux"))]
     #[error(display = "RuntimeManager: wrong message type received:{:?}", _0)]
     WrongMessageTypeError(NitroRootEnclaveMessage),
+    #[cfg(feature = "linux")]
+    #[error(display = "RuntimeManager: IO error: {:?}", _0)]
+    IoError(#[error(source)] std::io::Error),
 }
 
 impl<T> From<PoisonError<T>> for RuntimeManagerError {

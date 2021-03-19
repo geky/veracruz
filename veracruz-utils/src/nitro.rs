@@ -195,6 +195,7 @@ pub enum VeracruzSocketError {
 
 /// Send a buffer of data (using a length, buffer protocol) to the file 
 /// descriptor `fd`
+#[cfg(feature = "nitro")]
 pub fn send_buffer(fd: RawFd, buffer: &Vec<u8>) -> Result<(), VeracruzSocketError> {
     let len = buffer.len();
     // first, send the length of the buffer
@@ -230,6 +231,7 @@ pub fn send_buffer(fd: RawFd, buffer: &Vec<u8>) -> Result<(), VeracruzSocketErro
 
 /// Read a buffer of data (using a length, buffer protocol) from the file 
 /// descriptor `fd`
+#[cfg(feature = "nitro")]
 pub fn receive_buffer(fd: RawFd) -> Result<Vec<u8>, VeracruzSocketError> {
     // first, read the length
     let length = {
@@ -261,6 +263,57 @@ pub fn receive_buffer(fd: RawFd) -> Result<Vec<u8>, VeracruzSocketError> {
                     return Err(VeracruzSocketError::NixError(err));
                 }
             }
+        }
+    }
+    return Ok(buffer);
+}
+
+// TODO move these
+/// Send a buffer of data (using a length, buffer protocol) to the file 
+/// descriptor `fd`
+#[cfg(feature = "linux")]
+pub fn send_buffer<W: std::io::Write>(mut fd: W, buffer: &Vec<u8>) -> Result<(), std::io::Error> {
+    let len = buffer.len();
+    // first, send the length of the buffer
+    {
+        let mut buf = [0u8; 9];
+        LittleEndian::write_u64(&mut buf, buffer.len() as u64);
+        let mut sent_bytes = 0;
+        while sent_bytes < buf.len() {
+            sent_bytes += fd.write(&buf[sent_bytes..buf.len()])?;
+        }
+    }
+    // next, send the buffer
+    {
+        let mut sent_bytes = 0;
+        while sent_bytes < len {
+            let size = fd.write(&buffer[sent_bytes..len])?;
+            sent_bytes += size;
+        }
+    }
+    return Ok(());
+}
+
+/// Read a buffer of data (using a length, buffer protocol) from the file 
+/// descriptor `fd`
+#[cfg(feature = "linux")]
+pub fn receive_buffer<R: std::io::Read>(mut fd: R) -> Result<Vec<u8>, std::io::Error> {
+    // first, read the length
+    let length = {
+        let mut buf = [0u8; 9];
+        let len = buf.len();
+        let mut received_bytes = 0;
+        while received_bytes < len {
+            received_bytes += fd.read(&mut buf[received_bytes..len])?;
+        }
+        LittleEndian::read_u64(&buf) as usize
+    };
+    let mut buffer: Vec<u8> = vec![0; length];
+    // next, read the buffer
+    {
+        let mut received_bytes: usize = 0;
+        while received_bytes < length {
+            received_bytes += fd.read(&mut buffer[received_bytes..length])?;
         }
     }
     return Ok(buffer);

@@ -10,6 +10,7 @@
 # and copyright information.
  
 .PHONY: all sdk test_cases sgx-veracruz-client-test trustzone-veracruz-client-test sgx trustzone sgx-veracruz-server-test sgx-veracruz-server-performance sgx-veracruz-test sgx-psa-attestation tz-psa-attestationtrustzone-veracruz-server-test-setting  trustzone-veracruz-test-setting trustzone-env sgx-env trustzone-test-env clean clean-cargo-lock fmt 
+.PHONY: linux-veracruz-client-test linux linux-veracruz-server-test linux-veracruz-server-performance linux-veracruz-test linux-psa-attestation linux-env 
 
  
 WARNING_COLOR := "\e[1;33m"
@@ -19,6 +20,7 @@ OPTEE_DIR_SDK ?= /work/rust-optee-trustzone-sdk/
 AARCH64_OPENSSL_DIR ?= /work/rust-optee-trustzone-sdk/optee-qemuv8-3.7.0/build/openssl-1.0.2s/
 AARCH64_GCC ?= $(OPTEE_DIR)/toolchains/aarch64/bin/aarch64-linux-gnu-gcc
 SGX_RUST_FLAG ?= "-L/work/sgxsdk/lib64 -L/work/sgxsdk/sdk_libs"
+LINUX_RUST_FLAG ?= ""
 NITRO_RUST_FLAG ?= ""
  
 all:
@@ -40,12 +42,22 @@ sgx-veracruz-client-test: sgx test_cases
 trustzone-veracruz-client-test: trustzone test_cases
 	cd veracruz-client && cargo test --lib --features "mock tz" -- --test-threads=1
 
+# Test veracruz-client for sgx, due to the use of a mocked server with a fixed port, these tests must run in a single thread
+linux-veracruz-client-test: linux test_cases 
+	cd veracruz-client && RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test --lib --features "mock sgx" -- --test-threads=1
+
 # Compile for sgx
 # offset the CC OPENSSL_DIR, which might be used in compiling trustzone
 sgx: sdk sgx-env
 	cd runtime-manager-bind && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build
 	cd sgx-root-enclave-bind && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build
 	cd veracruz-client && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --lib --features sgx
+
+linux: sdk linux-env
+	RUSTFLAGS=$(LINUX_RUST_FLAG) $(MAKE) -C runtime-manager linux
+#	cd runtime-manager-bind && RUSTFLAGS=$(LINUX_RUST_FLAG) cargo build
+#	cd sgx-root-enclave-bind && RUSTFLAGS=$(LINUX_RUST_FLAG) cargo build
+#	cd veracruz-client && RUSTFLAGS=$(LINUX_RUST_FLAG) cargo build --lib --features sgx
 
 nitro: sdk
 	pwd
@@ -82,6 +94,30 @@ sgx-veracruz-test: sgx test_cases
 
 sgx-psa-attestation: sgx-env
 	cd psa-attestation && cargo build --features sgx
+
+linux-veracruz-server-test: linux test_cases
+	cd veracruz-server-test \
+		&& RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test --features linux -- --test-threads=1 \
+		&& RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test test_debug --features linux  -- --ignored --test-threads=1
+
+#linux-veracruz-server-test-dry-run: linux test_cases
+#	cd veracruz-server-test \
+#		&& RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test --features sgx --no-run 
+#
+#linux-veracruz-server-performance: linux test_cases
+#	cd veracruz-server-test \
+#		&& RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test test_performance_ --features sgx -- --ignored 
+#
+#linux-veracruz-test-dry-run: linux test_cases
+#	cd veracruz-test \
+#		&& RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test --features sgx --no-run
+#
+#linux-veracruz-test: linux test_cases
+#	cd veracruz-test \
+#		&& RUSTFLAGS=$(LINUX_RUST_FLAG) cargo test --features sgx 
+#
+#linux-psa-attestation: linux-env
+#	cd psa-attestation && cargo build --features sgx
 
 tz-psa-attestation: trustzone-env
 	cd psa-attestation && cargo build --target aarch64-unknown-linux-gnu --features tz
@@ -148,6 +184,9 @@ trustzone-env:
 	chmod u+x tz_test.sh
 
 sgx-env:
+	unset CC
+
+linux-env:
 	unset CC
 
 clean:

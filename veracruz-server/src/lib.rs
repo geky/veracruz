@@ -32,3 +32,8 @@ pub use self::veracruz_server_nitro::veracruz_server_nitro::*;
 
 #[cfg(feature = "nitro")]
 mod ec2_instance;
+
+#[cfg(feature = "linux")]
+pub mod veracruz_server_linux;
+#[cfg(feature = "linux")]
+pub use self::veracruz_server_linux::veracruz_server_linux::*;

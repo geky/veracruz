@@ -648,7 +648,8 @@ fn serialize_json(arguments: &Arguments) -> Value {
 
     if let Some(sgx_hash) = compute_sgx_enclave_hash(arguments) {
         base_json["runtime_manager_hash_sgx"] = JsonString(sgx_hash.clone());
-        base_json["runtime_manager_hash_tz"] = JsonString(sgx_hash);
+        base_json["runtime_manager_hash_tz"] = JsonString(sgx_hash.clone());
+        base_json["runtime_manager_hash_linux"] = JsonString(sgx_hash);
     }
 
     if let Some(nitro_hash) = compute_nitro_enclave_hash(arguments) {

@@ -9,6 +9,7 @@ description = "An untrusted server/bridge that allows the outside world and the 
 sgx = ["veracruz-utils/std","sgx_types", "sgx_urts", "transport-protocol/sgx_attestation", "runtime-manager-bind", "sgx-root-enclave-bind"]
 tz = ["veracruz-utils/std", "veracruz-utils/tz", "transport-protocol/tz", "optee-teec", "uuid"]
 nitro = ["veracruz-utils/nitro", "bincode", "serde/derive", "byteorder", "nix", "ssh2" ]
+linux = ["veracruz-utils/linux", "bincode", "serde/derive", "byteorder", "nix", "ssh2" ]
 debug = []
 
 [dependencies]

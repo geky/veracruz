@@ -16,6 +16,8 @@ use crate::veracruz_server_nitro::veracruz_server_nitro::VeracruzServerNitro as 
 use crate::veracruz_server_sgx::veracruz_server_sgx::VeracruzServerSGX as VeracruzServerEnclave;
 #[cfg(feature = "tz")]
 use crate::veracruz_server_tz::veracruz_server_tz::VeracruzServerTZ as VeracruzServerEnclave;
+#[cfg(feature = "linux")]
+use crate::veracruz_server_linux::veracruz_server_linux::VeracruzServerLinux as VeracruzServerEnclave;
 
 use actix_web::{dev::Server, middleware, post, web, App, HttpRequest, HttpServer};
 use base64;

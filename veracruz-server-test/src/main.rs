@@ -31,6 +31,8 @@ mod tests {
     use veracruz_server::VeracruzServerTZ as VeracruzServerEnclave;
     #[cfg(feature = "nitro")]
     use veracruz_server::VeracruzServerNitro as VeracruzServerEnclave;
+    #[cfg(feature = "linux")]
+    use veracruz_server::VeracruzServerLinux as VeracruzServerEnclave;
 
     use veracruz_utils::policy::EnclavePlatform;
 
@@ -252,6 +254,8 @@ mod tests {
         let test_target_platform: EnclavePlatform = EnclavePlatform::SGX;
         #[cfg(feature = "tz")]
         let test_target_platform: EnclavePlatform = EnclavePlatform::TrustZone;
+        #[cfg(feature = "linux")]
+        let test_target_platform: EnclavePlatform = EnclavePlatform::Linux;
 
         let runtime_manager_hash = policy.runtime_manager_hash(&test_target_platform).unwrap();
         let enclave_cert_hash_ret =
@@ -783,6 +787,8 @@ mod tests {
         let test_target_platform: EnclavePlatform = EnclavePlatform::SGX;
         #[cfg(feature = "tz")]
         let test_target_platform: EnclavePlatform = EnclavePlatform::TrustZone;
+        #[cfg(feature = "linux")]
+        let test_target_platform: EnclavePlatform = EnclavePlatform::Linux;
 
         let runtime_manager_hash = policy.runtime_manager_hash(&test_target_platform).unwrap();
         let enclave_cert_hash = if attestation_flag {

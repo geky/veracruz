@@ -23,7 +23,11 @@ sgx = ["sgx_types", "sgx_ucrypto", "sgx_urts", "psa-attestation/sgx", "transport
 # a feature to enable PSA native attestation.
 # Note: Final attestation is always PSA. This is just to enable platforms
 # that use PSA for their native attestation.
-psa = ["psa-attestation/tz"]
+
+# TODO fix this...
+# psa = ["psa-attestation/tz"]
+psa = []
+
 nitro = [ "serde_cbor", "nitro-enclave-token" ]
 
 [dependencies]
@@ -52,6 +56,7 @@ env_logger = "0.7"
 err-derive = "0.2"
 serde_cbor = {version = "0.11", optional = true }
 nitro-enclave-token = { git = "https://github.com/veracruz-project/nitro-enclave-token.git", branch = "main", optional = true }
+nb-connect = "=1.0.3"
 
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]

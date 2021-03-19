@@ -17,6 +17,9 @@ use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
 fn main() -> std::io::Result<()> {
+    // default to only running if build.rs or config changes
+    println!("cargo:rerun-if-changed=build.rs");
+
     let target = target_build_utils::TargetInfo::new().expect("could not get target info");
     if target.target_arch() == "aarch64" {
         let out = &PathBuf::from(env::var_os("OUT_DIR").unwrap());

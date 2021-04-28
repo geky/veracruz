@@ -27,7 +27,8 @@ RUST_EXAMPLES = idash2017-logistic-regression \
 		   private-set-intersection-sum \
 		   string-edit-distance \
  		   number-stream-accumulation \
-		   shamir-secret-sharing
+		   shamir-secret-sharing \
+		   audio-event-triangulation
 RUST_EXAMPLE_DIR = rust-language-support/examples/
 # Navigate to the actual wasm programs.
 RELATIVE_RUST_EXAMPLES = $(foreach EXAMPLE,$(RUST_EXAMPLES),$(addsuffix /target/wasm32-arm-veracruz/release/$(EXAMPLE).wasm,$(addprefix $(RUST_EXAMPLE_DIR), $(EXAMPLE))))

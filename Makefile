@@ -42,12 +42,14 @@ trustzone-veracruz-client-test: trustzone test_cases
 
 # Compile for sgx
 # offset the CC OPENSSL_DIR, which might be used in compiling trustzone
-sgx: sdk sgx-env
+sgx: sdk sgx-enclaves sgx-env
+
+sgx-enclaves: sgx-env
 	cd runtime-manager-bind && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build
 	cd sgx-root-enclave-bind && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build
 	cd veracruz-client && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --lib --features sgx
 
-sgx-bin: sgx-enclaves sgx-env
+sgx-cli: sgx-enclaves sgx-env
 	mkdir -p bin
 	# TODO do we really need SGX flag for tabasco?
 	cd tabasco-cli && RUSTFLAGS=$(SGX_RUST_FLAG) cargo build --features sgx

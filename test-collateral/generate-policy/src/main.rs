@@ -29,6 +29,7 @@ use veracruz_utils::policy::{
     policy::Policy,
     expiry::Timepoint,
     principal::{ExecutionStrategy, Identity, Program, FileRights},
+    parsers::parse_renamable_paths,
 };
 use wasi_types::Rights;
 
@@ -132,7 +133,7 @@ struct Arguments {
     /// field is an internal invariant failure.
     certificate_expiry: Option<DateTime<FixedOffset>>,
     /// The filename of the WASM program.
-    program_binaries: Vec<PathBuf>,
+    program_binaries: Vec<(String, PathBuf)>,
     /// Whether the enclave will be started in debug mode, with reduced
     /// protections against snooping and interference, and with the ability to
     /// write to the host's `stdout`.
@@ -281,7 +282,10 @@ as an RFC-2822 formatted timepoint.",
                 .short("w")
                 .long("binary")
                 .value_name("FILE")
-                .help("Specifies the filename of the WASM binary to use for the computation.")
+                .help("Specifies the filename of the WASM binary to use for the computation. \
+This can be of the form \"--binary name\" or \"--binary enclave_name:path\" if you want to \
+supply the file as a different name in the enclave. Multiple --binary flags or a comma-separated \
+list of files may be provided.")
                 .required(true)
                 .multiple(true),
         )
@@ -320,8 +324,18 @@ binary.",
         abort_with("No certificates were passed as command line parameters.");
     }
 
-    if let Some(binaries) = matches.values_of("binary") {
-        arguments.program_binaries = binaries.map(|b| PathBuf::from(b)).collect();
+    if let Some(binaries) = matches.values_of_os("binary") {
+        arguments.program_binaries = binaries
+            .map(|b| {
+                match parse_renamable_paths(b) {
+                    Ok(paths) => paths,
+                    Err(err) => {
+                        abort_with(err.to_string_lossy());
+                    }
+                }
+            })
+            .flatten()
+            .collect();
     } else {
         abort_with("No program binary filename passed as an argument.");
     }
@@ -586,17 +600,17 @@ fn serialize_binaries(arguments: &Arguments) -> Vec<Program> {
     
     let mut values = Vec::new();
 
-    for (id, (program_file_name, capability)) in arguments
+    for (id, ((program_file_name, program_file_path), capability)) in arguments
         .program_binaries
         .iter()
         .zip(&arguments.binary_capabilities)
         .enumerate()
     {
-        let pi_hash = compute_program_hash(program_file_name);
+        let pi_hash = compute_program_hash(program_file_path);
         let file_permissions = serialize_capability(capability);
 
         values.push(Program::new(
-            program_file_name.to_str().expect(&format!("Failed to convert {:?} to str",program_file_name)).trim().to_string(),
+            program_file_name.clone(),
             id as u32,
             pi_hash,
             file_permissions,

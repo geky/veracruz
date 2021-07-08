@@ -14,7 +14,7 @@ FINAL_DIR?=.
 
 .PHONY: all sgx trustzone clean deprecated nitro
 
-all: deprecated sgx
+all: deprecated
 
 WARNING_COLOR := "\e[1;33m"
 INFO_COLOR := "\e[1;32m"
@@ -36,14 +36,15 @@ $(FINAL_DIR)/$(Signed_RustEnclave_RootName): $(Signed_RustEnclave_Name)
 
 sgx: $(FINAL_DIR)/$(Signed_RustEnclave_RootName) $(SGX_Enclave_Name) $(Signed_RustEnclave_Name) $(Untrusted_Lib_Name)
 
-css.bin: $(Signed_RustEnclave_Name)
+# Note: css-sgx.bin will be generated as a side effect of the dependency $(Signed_RustEnclave_Name)
+css-sgx.bin: $(Signed_RustEnclave_Name)
 
 ############# Source code #################
 
 COMMON_Src = src/managers/*.rs
 
 ############# Files generated from the EDL File ###############
-EDL_Files := runtime_manager_t.c runtime_manager_t.h runtime_manager_u.c runtime_manager_u.h
+EDL_Files := $(OUT_DIR)/runtime_manager_t.c $(OUT_DIR)/runtime_manager_t.h $(OUT_DIR)/runtime_manager_u.c $(OUT_DIR)/runtime_manager_u.h
 
 SGX_SDK ?= /work/sgxsdk
 
@@ -56,6 +57,10 @@ RUST_SGX_SDK_PATH = ../third-party/rust-sgx-sdk
 $(EDL_Files): $(SGX_EDGER8R) runtime_manager.edl
 	$(SGX_EDGER8R) --use-prefix --trusted runtime_manager.edl --search-path $(SGX_SDK)/include --search-path $(RUST_SGX_SDK_PATH)/edl --trusted-dir .
 	$(SGX_EDGER8R) --use-prefix --untrusted runtime_manager.edl --search-path $(SGX_SDK)/include --search-path $(RUST_SGX_SDK_PATH)/edl --untrusted-dir .
+	cp -u runtime_manager_t.c $(OUT_DIR)
+	cp -u runtime_manager_u.c $(OUT_DIR)
+	cp -u runtime_manager_u.h $(OUT_DIR)
+	cp -u runtime_manager_t.h $(OUT_DIR)
 	@echo $(INFO_COLOR) "GEN => $(EDL_Files)" $(RESET_COLOR)
 
 SGX_COMMON_CFLAGS += -O0 -g
@@ -63,7 +68,7 @@ CUSTOM_EDL_PATH :=$(RUST_SGX_SDK_PATH)/edl
 RuntimeManager_Include_Paths := -I ./src -I$(SGX_SDK)/include -I$(CUSTOM_EDL_PATH)
 RuntimeManager_C_Flags := $(SGX_COMMON_CFLAGS) -fPIC -Wno-attributes $(RuntimeManager_Include_Paths)
 $(OUT_DIR)/runtime_manager_u.o: $(EDL_Files)
-	@$(CC) $(RuntimeManager_C_Flags) -c ./runtime_manager_u.c -o $@
+	@$(CC) $(RuntimeManager_C_Flags) -c $(OUT_DIR)/runtime_manager_u.c -o $@
 	@echo $(INFO_COLOR) "CC => $<" $(RESET_COLOR)
 
 CUSTOM_COMMON_PATH := $(RUST_SGX_SDK_PATH)/common
@@ -94,7 +99,7 @@ $(RustEnclave_Name): $(OUT_DIR)/runtime_manager_t.o $(SGX_Enclave_Name)
 	@echo $(INFO_COLOR) "LINK =>  $@" $(RESET_COLOR)
 
 $(Signed_RustEnclave_Name): $(RustEnclave_Name) $(SGX_Enclave_Name)
-	@$(SGX_ENCLAVE_SIGNER) sign -key ./Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config ./Enclave.config.xml -cssfile css.bin
+	@$(SGX_ENCLAVE_SIGNER) sign -key ./Enclave_private.pem -enclave $(RustEnclave_Name) -out $@ -config ./Enclave.config.xml -cssfile css-sgx.bin
 	@echo $(INFO_COLOR) "SIGN =>  $@" $(RESET_COLOR)
 
 $(RuntimeManager_u_Object): $(OUT_DIR)/runtime_manager_u.o
@@ -128,6 +133,12 @@ TZ_TARGET := aarch64-unknown-optee-trustzone
 
 trustzone: $(FINAL_DIR)/$(TZ_UUID).ta
 
+css-tz.bin: $(FINAL_DIR)/$(TZ_UUID).ta
+	cp $< $@
+
+css-nitro.bin: PCR0
+	cp $< $@
+
 $(FINAL_DIR)/$(TZ_UUID).ta: $(OUT_DIR)/$(TZ_UUID).ta
 	cp $< $@
 
@@ -141,7 +152,7 @@ $(OUT_DIR)/stripped_ta: $(OUT_DIR)/runtime_manager_enclave
 
 $(OUT_DIR)/runtime_manager_enclave: $(TZ_Src)
 	@echo $(INFO_COLOR)"CARGO <=  $(TZ_Src)" $(RESET_COLOR)
-	@xargo build --target $(TZ_TARGET) --features tz --release --verbose --out-dir $(OUT_DIR) -Z unstable-options
+	@OPTEE_OS_DIR=$(OPTEE_OS_DIR) xargo build --target $(TZ_TARGET) --features tz --release --verbose --out-dir $(OUT_DIR) -Z unstable-options
 	@echo $(INFO_COLOR)"GEN   =>  runtime_manager_enclave" $(RESET_COLOR)
 
 
@@ -168,5 +179,6 @@ clean:
 	@rm -f $(OUT_DIR)/$(TZ_UUID).ta 
 	@rm -f $(OUT_DIR)/stripped_ta
 	@rm -f $(OUT_DIR)/runtime_manager_enclave
+	@rm -f $(RustEnclave_Name)
 	@rm -rf bin/
-	@rm -f css.bin
+	@rm -f css-*.bin

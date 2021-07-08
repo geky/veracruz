@@ -10,7 +10,7 @@
 //! and copyright information.
 
 use std::{
-    fs::File,
+    fs::{ File, read_to_string},
     io::{Read, Write},
     net::SocketAddr,
     path::{Path, PathBuf},
@@ -22,13 +22,13 @@ use std::{
 use chrono::{DateTime, Datelike, FixedOffset, Timelike};
 use clap::{App, Arg};
 use data_encoding::HEXLOWER;
-use log::{error, info};
+use log::{error, info, warn};
 use ring::digest::{digest, SHA256};
 use serde_json::{json, to_string_pretty, Value};
 use veracruz_utils::policy::{
     policy::Policy,
     expiry::Timepoint,
-    principal::{ExecutionStrategy, Identity, Program, FileRights},
+    principal::{ExecutionStrategy, Identity, Program, FileRights, StandardStream},
     parsers::parse_renamable_paths,
 };
 use wasi_types::Rights;
@@ -118,6 +118,8 @@ struct Arguments {
     veracruz_server_ip: Option<SocketAddr>,
     /// The socket address (IP and port) of the Veracruz proxy attestation instance.
     proxy_attestation_server_ip: Option<SocketAddr>,
+    /// The filename of the Proxy Attestation Service certificate
+    proxy_service_cert: PathBuf,
     /// The filename of the Runtime Manager CSS file for SGX measurement.  This is
     /// optional.
     css_file: Option<PathBuf>,
@@ -141,6 +143,9 @@ struct Arguments {
     /// Describes the execution strategy (interpretation or JIT) that will be
     /// used for the computation.
     execution_strategy: String,
+    stdin: Option<String>,
+    stdout: Option<String>,
+    stderr: Option<String>,
 }
 
 impl Arguments {
@@ -155,6 +160,7 @@ impl Arguments {
             binary_capabilities: Vec::new(),
             veracruz_server_ip: None,
             proxy_attestation_server_ip: None,
+            proxy_service_cert: PathBuf::new(),
             css_file: None,
             pcr0_file: None,
             output_policy_file: PathBuf::new(),
@@ -162,6 +168,9 @@ impl Arguments {
             program_binaries: Vec::new(),
             enclave_debug_mode: false,
             execution_strategy: String::new(),
+            stdin: None,
+            stdout: None,
+            stderr: None,
         }
     }
 }
@@ -242,6 +251,13 @@ fn parse_command_line() -> Arguments {
                 .required(true),
         )
         .arg(
+            Arg::with_name("proxy-attestation-server-cert")
+                .long("proxy-attestation-server-cert")
+                .value_name("PROXY_CERT")
+                .help("CA Certificate that the proxy attestation service uses to create and sign certificates")
+                .required(true),
+        )
+        .arg(
             Arg::with_name("css-file")
                 .short("b")
                 .long("css-file")
@@ -312,6 +328,30 @@ binary.",
                 .required(true)
                 .default_value(DEFAULT_EXECUTION_STRATEGY),
         )
+        .arg(
+            Arg::with_name("stdin")
+                .short("si")
+                .long("stdin")
+                .value_name("STDIN")
+                .help("The configuration of the standard input in the form 'path:rights'")
+                .required(false),
+        )
+        .arg(
+            Arg::with_name("stdout")
+                .short("so")
+                .long("stdout")
+                .value_name("STDOUT")
+                .help("The configuration of the standard output in the form 'path:rights'")
+                .required(false),
+        )
+        .arg(
+            Arg::with_name("stderr")
+                .short("se")
+                .long("stderr")
+                .value_name("STDERR")
+                .help("The configuration of the standard error in the form 'path:rights'")
+                .required(false),
+        )
         .get_matches();
 
     info!("Parsed command line.");
@@ -378,6 +418,12 @@ binary.",
         abort_with("No Veracruz proxy attestation server IP address was passed as a command line parameter.");
     }
 
+    if let Some(cert_file) = matches.value_of("proxy-attestation-server-cert") {
+        arguments.proxy_service_cert = PathBuf::from(cert_file);
+    } else {
+        abort_with("No Proxy Attestation Server certificate filename was passed as a command line parameter.");
+    }
+
     if let Some(fname) = matches.value_of("output-policy-file") {
         arguments.output_policy_file = PathBuf::from(fname);
     } else {
@@ -435,6 +481,32 @@ command-line parameter.",
         );
     }
 
+    if let Some(stdin) = matches.value_of("stdin") {
+        let stdin = String::from(stdin);
+        let stdin2 = stdin.clone();
+        check_capability(&[vec![stdin]]);
+        arguments.stdin = Some(stdin2);
+    } else {
+        info!("No stdin configuration was passed as command line parameters.");
+    }
+
+    if let Some(stdout) = matches.value_of("stdout") {
+        let stdout = String::from(stdout);
+        let stdout2 = stdout.clone();
+        check_capability(&[vec![stdout]]);
+        arguments.stdout = Some(stdout2);
+    } else {
+        info!("No stdout configuration was passed as command line parameters.");
+    }
+
+    if let Some(stderr) = matches.value_of("stderr") {
+        let stderr = String::from(stderr);
+        let stderr2 = stderr.clone();
+        check_capability(&[vec![stderr]]);
+        arguments.stderr = Some(stderr2);
+    } else {
+        info!("No stderr configuration was passed as command line parameters.");
+    }
     info!("Successfully extracted command line arguments.");
 
     arguments
@@ -518,8 +590,8 @@ fn compute_sgx_enclave_hash(arguments: &Arguments) -> Option<String> {
             abort_with("Invocation of 'dd' command failed.");
         }
     } else {
-        error!("Runtime Manager CSS.bin file cannot be opened.");
-        error!("Continuing on without computing an SGX hash.");
+        warn!("Runtime Manager CSS.bin file cannot be opened.");
+        warn!("Continuing on without computing an SGX hash.");
         None
     }
 }
@@ -542,6 +614,10 @@ fn compute_nitro_enclave_hash(arguments: &Arguments) -> Option<String> {
             .expect("Failed to read file.");
 
         content = content.replace("\n", "");
+        // Nitro Enclave hashes are computed using SHA384, which produces 48
+        // bytes. We only have room right now for 32 byte hashes.
+        // Thus, we need to truncate down to 32 bytes (64 hex characters)
+        content = content[0..64].to_string();
 
         info!("Hash successfully computed, {}.", content);
 
@@ -589,6 +665,12 @@ fn serialize_identities(arguments: &Arguments) -> Vec<Identity<String>> {
         }
     }
     values
+}
+
+/// Serializes the proxy attestation service certificate (basically reads the
+/// string from the file and returns that
+pub fn serialize_certificate(path: &PathBuf) -> String {
+    return read_to_string(path.to_str().unwrap()).unwrap();
 }
 
 /// Serializes the identities of all principals in the Veracruz computation into
@@ -702,6 +784,25 @@ fn serialize_execution_strategy(strategy: &str) -> ExecutionStrategy {
     }
 }
 
+/// Serializes the standard streams of all principals in the Veracruz computation into
+/// a vec of StandardStream.
+fn serialize_std_streams(arguments: &Arguments) -> Vec<StandardStream> {
+    info!("Serializing standard streams.");
+    
+    let mut std_streams_table = Vec::new();
+    if let Some(stdin) = &arguments.stdin {
+        std_streams_table.push(StandardStream::Stdin(serialize_capability_entry(&stdin)));
+    }
+    if let Some(stdout) = &arguments.stdout {
+        std_streams_table.push(StandardStream::Stdout(serialize_capability_entry(&stdout)));
+    }
+    if let Some(stderr) = &arguments.stderr {
+        std_streams_table.push(StandardStream::Stderr(serialize_capability_entry(&stderr)));
+    }
+
+    std_streams_table
+}
+
 /// Serializes the Veracruz policy file as a JSON value.
 ///
 /// NOTE: we are glossing over TrustZone attestation for the moment, so we use
@@ -722,8 +823,10 @@ fn serialize_json(arguments: &Arguments) -> Value {
         sgx_hash.clone(),
         compute_nitro_enclave_hash(arguments),
         format!("{}", &arguments.proxy_attestation_server_ip.as_ref().expect(&format!("Failed to get the proxy attestation server ip"))),
+        serialize_certificate(&arguments.proxy_service_cert),
         arguments.enclave_debug_mode,
         serialize_execution_strategy(&arguments.execution_strategy),
+        serialize_std_streams(arguments),
     ).expect("Failed to instantiate a (struct) policy");
 
     json!(policy)

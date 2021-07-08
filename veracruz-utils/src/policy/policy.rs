@@ -35,7 +35,7 @@ use crate::{
         error::PolicyError,
         expiry::Timepoint,
         principal::{
-            RightsTable, ExecutionStrategy, Identity, Principal,
+            RightsTable, ExecutionStrategy, Identity, Principal, StandardStream,
             Program,
         },
     },
@@ -86,12 +86,17 @@ pub struct Policy {
     runtime_manager_hash_nitro: Option<String>,
     /// The URL of the proxy attestation service.
     proxy_attestation_server_url: String,
+    /// The PEM encoded certificate for the proxy service that matches the chosen
+    /// platform constraints for the policy
+    proxy_service_cert: String,
     /// The debug configuration flag.  This dictates whether the WASM program
     /// will be able to print debug configuration messages to *stdout* on the
     /// host's machine.
     debug: bool,
     /// The execution strategy that will be used to execute the WASM binary.
     execution_strategy: ExecutionStrategy,
+    /// The rights table of the standard streams.
+    std_streams_table: Vec<StandardStream>,
 }
 
 impl Policy {
@@ -108,11 +113,14 @@ impl Policy {
         runtime_manager_hash_tz: Option<String>,
         runtime_manager_hash_nitro: Option<String>,
         proxy_attestation_server_url: String,
+        proxy_service_cert: String,
         debug: bool,
         execution_strategy: ExecutionStrategy,
+        std_streams_table: Vec<StandardStream>,
     ) -> Result<Self, PolicyError> {
         let policy = Self {
             identities,
+            proxy_service_cert,
             programs,
             veracruz_server_url,
             enclave_cert_expiry,
@@ -123,6 +131,7 @@ impl Policy {
             proxy_attestation_server_url,
             debug,
             execution_strategy,
+            std_streams_table,
         };
 
         policy.assert_valid()?;
@@ -151,6 +160,10 @@ impl Policy {
         &self.veracruz_server_url
     }
 
+    /// Returns the proxy service certificate associated with this policy
+    pub fn proxy_service_cert(&self) -> &String {
+        &self.proxy_service_cert
+    }
     /// Returns the enclave certificate expiry moment associated with this
     /// policy.
     #[inline]
@@ -223,6 +236,12 @@ impl Policy {
     #[inline]
     pub fn execution_strategy(&self) -> &ExecutionStrategy {
         &self.execution_strategy
+    }
+
+    /// Return the rights of the standard streams, associated with this policy.
+    #[inline]
+    pub fn std_streams_table(&self) -> &Vec<StandardStream> {
+        &self.std_streams_table
     }
 
     /// Checks that the policy is valid, returning `Err(reason)` iff the policy

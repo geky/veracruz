@@ -230,7 +230,7 @@ fn parse_command_line() -> Arguments {
                 .short("p")
                 .long("capability")
                 .value_name("CAPABILITIES")
-                .help("The capability table of a client or a program of the form 'output:rw,input-0:w,prorgam.wasm:w' where each entry is separated by ','. These may be either some combination of 'r' and 'w' for reading and writing permissions respectively, or an integer containing the bitwise-or of the low-level WASI capabilities.")
+                .help("The capability table of a client or a program of the form 'output:rw,input-0:w,progam.wasm:w' where each entry is separated by ','. These may be either some combination of 'r' and 'w' for reading and writing permissions respectively, or an integer containing the bitwise-or of the low-level WASI capabilities.")
                 .required(true)
                 .multiple(true),
         )
